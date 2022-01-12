@@ -15,7 +15,7 @@
 PrintfSuppressLevel gPrintfSuppress = 0;
 char* sPrintfPrefix = "ExtLib";
 u8 sPrintfType = 1;
-u8* sSegment;
+u8* sSegment[255];
 char* sPrintfPreType[][4] = {
 	{
 		NULL,
@@ -30,6 +30,17 @@ char* sPrintfPreType[][4] = {
 		"info"
 	}
 };
+
+void SetSegment(u8 id, void* segment) {
+	sSegment[id] = segment;
+}
+
+void* SegmentedToVirtual(u8 id, void32 ptr) {
+	if (sSegment[id] == NULL)
+		printf_error("Segment 0x%X == NULL", id);
+	
+	return &sSegment[id][ptr];
+}
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
 	gPrintfSuppress = lvl;
@@ -107,7 +118,7 @@ void printf_debug(const char* fmt, ...) {
 	va_end(args);
 }
 
-void printf_debug_al(const char* info, const char* fmt, ...) {
+void printf_debug_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress > PSL_DEBUG)
 		return;
 	
@@ -116,14 +127,14 @@ void printf_debug_al(const char* info, const char* fmt, ...) {
 	va_start(args, fmt);
 	__printf_call(0);
 	printf(
-		"%-16s " PRNT_RSET "[ " PRNT_GRAY,
+		"%-16s " PRNT_RSET,
 		info
 	);
 	vprintf(
 		fmt,
 		args
 	);
-	printf(PRNT_RSET " ]\n");
+	printf(PRNT_RSET "\n");
 	va_end(args);
 }
 
@@ -142,7 +153,7 @@ void printf_warning(const char* fmt, ...) {
 	va_end(args);
 }
 
-void printf_warning_al(const char* info, const char* fmt, ...) {
+void printf_warning_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_WARNING)
 		return;
 	
@@ -151,14 +162,14 @@ void printf_warning_al(const char* info, const char* fmt, ...) {
 	va_start(args, fmt);
 	__printf_call(1);
 	printf(
-		"%-16s [ " PRNT_GRAY,
+		"%-16s " PRNT_RSET,
 		info
 	);
 	vprintf(
 		fmt,
 		args
 	);
-	printf(PRNT_RSET " ]\n");
+	printf(PRNT_RSET "\n");
 	va_end(args);
 }
 
@@ -178,21 +189,21 @@ void printf_error(const char* fmt, ...) {
 	exit(EXIT_FAILURE);
 }
 
-void printf_error_al(const char* info, const char* fmt, ...) {
+void printf_error_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		va_list args;
 		
 		va_start(args, fmt);
 		__printf_call(2);
 		printf(
-			"%-16s [ " PRNT_GRAY,
+			"%-16s " PRNT_RSET,
 			info
 		);
 		vprintf(
 			fmt,
 			args
 		);
-		printf(PRNT_RSET " ]\n");
+		printf(PRNT_RSET "\n");
 		va_end(args);
 	}
 	exit(EXIT_FAILURE);
@@ -213,7 +224,7 @@ void printf_info(const char* fmt, ...) {
 	va_end(args);
 }
 
-void printf_info_al(const char* info, const char* fmt, ...) {
+void printf_info_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
 	va_list args;
@@ -221,15 +232,32 @@ void printf_info_al(const char* info, const char* fmt, ...) {
 	va_start(args, fmt);
 	__printf_call(3);
 	printf(
-		"%-16s [ " PRNT_GRAY,
+		"%-16s " PRNT_RSET,
 		info
 	);
 	vprintf(
 		fmt,
 		args
 	);
-	printf(PRNT_RSET " ]\n");
+	printf(PRNT_RSET "\n");
 	va_end(args);
+}
+
+void printf_progress(const char* info, u32 a, u32 b) {
+	if (gPrintfSuppress >= PSL_NO_INFO)
+		return;
+	
+	printf("\r");
+	__printf_call(3);
+	printf(
+		"%-16s " PRNT_RSET,
+		info
+	);
+	printf("[%d / %d]", a, b);
+	
+	if (a == b) {
+		printf("\n");
+	}
 }
 
 void printf_WinFix() {
@@ -414,28 +442,21 @@ s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg) {
 	return 0;
 }
 
-void Lib_MakeDir(const char* dir) {
+void Lib_MakeDir(char* dir) {
 	struct stat st = { 0 };
+	char* buffer = String_GetPath(dir);
 	
-	if (stat(dir, &st) == -1) {
+	if (stat(buffer, &st) == -1) {
 		#ifdef _WIN32
-			if (mkdir(dir)) {
-				printf_error_al("mkdir", "%s", dir);
+			if (mkdir(buffer)) {
+				printf_error_align("mkdir", "%s", buffer);
 			}
 		#else
-			if (mkdir(dir, 0700)) {
-				printf_error_al("mkdir", "%s", dir);
+			if (mkdir(buffer, 0700)) {
+				printf_error_align("mkdir", "%s", buffer);
 			}
 		#endif
 	}
-}
-
-void Lib_SetSeg(void* segment) {
-	sSegment = segment;
-}
-
-void* Lib_SegToPtr(void32 ptr) {
-	return &sSegment[ptr];
 }
 
 // File
@@ -473,7 +494,7 @@ void File_Save(char* filepath, void* src, s32 size) {
 		printf_error("Failed to fopen file [%s].", filepath);
 	}
 	
-	fwrite(src, sizeof(u8), size, file);
+	fwrite(src, sizeof(char), size, file);
 	fclose(file);
 }
 
@@ -502,7 +523,7 @@ MemFile MemFile_Initialize() {
 }
 
 void MemFile_Malloc(MemFile* memFile, u32 size) {
-	memset(memFile, 0, sizeof(MemFile));
+	memset(memFile, 0, sizeof(struct MemFile));
 	memFile->data = malloc(size);
 	memset(memFile->data, 0, size);
 	
@@ -516,8 +537,8 @@ void MemFile_Malloc(MemFile* memFile, u32 size) {
 void MemFile_Realloc(MemFile* memFile, u32 size) {
 	if (memFile->memSize > size)
 		return;
-	printf_debugExt_al("memSize", "%08X", memFile->memSize);
-	printf_debug_al("reqSize", "%08X", size);
+	printf_debugExt_align("memSize", "%08X", memFile->memSize);
+	printf_debug_align("reqSize", "%08X", size);
 	// Make sure to have enough space
 	if (size < memFile->memSize + 0x10000) {
 		size += 0x10000;
@@ -525,7 +546,7 @@ void MemFile_Realloc(MemFile* memFile, u32 size) {
 	
 	memFile->data = realloc(memFile->data, size);
 	memFile->memSize = size;
-	printf_debug_al("newSize", "%08X", size);
+	printf_debug_align("newSize", "%08X", size);
 }
 
 void MemFile_Rewind(MemFile* memFile) {
@@ -586,7 +607,7 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 		return 1;
 	}
 	
-	printf_debugExt_al("File", "%s", filepath);
+	printf_debugExt_align("File", "%s", filepath);
 	
 	fseek(file, 0, SEEK_END);
 	tempSize = ftell(file);
@@ -613,8 +634,8 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 		free(memFile->info.name);
 	memFile->info.name = String_Generate(filepath);
 	
-	printf_debug_al("Ptr", "%08X", memFile->data);
-	printf_debug_al("Size", "%08X", memFile->dataSize);
+	printf_debug_align("Ptr", "%08X", memFile->data);
+	printf_debug_align("Size", "%08X", memFile->dataSize);
 	
 	return 0;
 }
@@ -672,7 +693,7 @@ s32 MemFile_SaveFile(MemFile* memFile, char* filepath) {
 		return 1;
 	}
 	
-	fwrite(memFile->data, sizeof(u8), memFile->dataSize, file);
+	fwrite(memFile->data, sizeof(char), memFile->dataSize, file);
 	fclose(file);
 	
 	return 0;
@@ -687,7 +708,7 @@ s32 MemFile_SaveFile_String(MemFile* memFile, char* filepath) {
 		return 1;
 	}
 	
-	fwrite(memFile->data, sizeof(u8), memFile->dataSize, file);
+	fwrite(memFile->data, sizeof(char), memFile->dataSize, file);
 	fclose(file);
 	
 	return 0;
@@ -718,7 +739,7 @@ void MemFile_Free(MemFile* memFile) {
 			free(memFile->info.name);
 		free(memFile->data);
 		
-		memset(memFile, 0, sizeof(MemFile));
+		memset(memFile, 0, sizeof(struct MemFile));
 	}
 }
 

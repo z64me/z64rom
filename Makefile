@@ -14,6 +14,8 @@ PRNT_PRPL := \e[0;95m
 PRNT_CYAN := \e[0;96m
 PRNT_RSET := \e[m
 
+HEADER := lib/z64rom.h lib/z64audio.h lib/ExtLib.h
+
 # Make build directories
 $(shell mkdir -p bin/ $(foreach dir, \
 	$(dir $(SOURCE_O_WIN32)) \
@@ -33,11 +35,11 @@ clean:
 	@rm -f $(shell find z64ro -type f -not -name '*.c')
 
 # LINUX
-bin/linux/%.o: %.c %.h lib/z64rom.h lib/ExtLib.h
+bin/linux/%.o: %.c %.h $(HEADER)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(CFLAGS)
 	
-bin/linux/%.o: %.c lib/z64rom.h lib/ExtLib.h
+bin/linux/%.o: %.c $(HEADER)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(CFLAGS)
 
@@ -46,11 +48,11 @@ z64rom: z64rom.c $(SOURCE_O_LINUX)
 	@gcc -o $@ $^ $(CFLAGS) -lm
 
 # WINDOWS32
-bin/win32/%.o: %.c %.h lib/z64rom.h lib/ExtLib.h
+bin/win32/%.o: %.c %.h $(HEADER)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
 	
-bin/win32/%.o: %.c lib/z64rom.h lib/ExtLib.h
+bin/win32/%.o: %.c $(HEADER)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
 

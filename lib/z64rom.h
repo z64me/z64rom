@@ -4,34 +4,37 @@
 #include "ExtLib.h"
 #include "Rom.h"
 #include "Dma.h"
+#include "z64audio.h"
 
 typedef struct Rom {
-	MemFile   file;
-	DmaEntry* dmaTable;
-	ActorOverlay* actorTable;
-	VRomFile* objectTable;
-	GameStateOverlay* stateTable;
+	MemFile         file;
+	DmaEntry*       dmaTable;
+	ActorEntry*     actorTable;
+	SceneEntry*     sceneTable;
+	ObjectEntry*    objectTable;
+	GameStateEntry* stateTable;
 } Rom;
 
-typedef enum {
-	ROM_NONE         = 0,
-	ROM_DMA_TABLE    = 0x012F70,
-	ROM_OBJECT_TABLE = 0xB9E6C8,
-	ROM_ACTOR_TABLE  = 0xB8D440,
-	ROM_STATE_TABLE  = 0xB969D0,
-} RomAddress;
+extern u32 gDmaDataTable;
+extern u32 gObjectTable;
+extern u32 gActorOverlayTable;
+extern u32 gGameStateOverlayTable;
 
-typedef enum {
-	TABLESIZE_NONE   = 0,
-	TABLESIZE_OBJECT = 402,
-	TABLESIZE_SCENE  = 110,
-	TABLESIZE_ACTOR  = 471,
-	TABLESIZE_STATE  = 6,
-	TABLESIZE_DMA    = 1548,
-} TableSize;
+extern u32 gSoundFontTable;
+extern u32 gSequenceFontTable;
+extern u32 gSequenceTable;
+extern u32 gSampleBankTable;
+
+extern u32 OBJECT_ID_MAX;
+extern u32 SCENE_ID_MAX;
+extern u32 ACTOR_ID_MAX;
+extern u32 GAMESTATE_ID_MAX;
+extern u32 DMA_ID_MAX;
 
 extern char* gObjectName[];
 extern char* gActorName[];
 extern char* gStateName[];
+extern char* gSceneName[];
+extern char* gBankName[];
 
 #endif

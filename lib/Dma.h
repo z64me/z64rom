@@ -4,19 +4,19 @@
 #include "ExtLib.h"
 
 typedef struct {
-	/* 0x00 */ void32 loadedRamAddr;
-	/* 0x04 */ u32    vromStart; // if applicable
-	/* 0x08 */ u32    vromEnd; // if applicable
-	/* 0x0C */ void32 vramStart; // if applicable
-	/* 0x10 */ void32 vramEnd; // if applicable
-	/* 0x14 */ void32 unk_14;
-	/* 0x18 */ void32 init; // initializes and executes the given context
-	/* 0x1C */ void32 destroy; // deconstructs the context, and sets the next context to load
-	/* 0x20 */ void32 unk_20;
-	/* 0x24 */ void32 unk_24;
-	/* 0x28 */ s32    unk_28;
-	/* 0x2C */ u32    instanceSize;
-} GameStateOverlay; // size = 0x30
+	void32 loadedRamAddr;
+	u32    vromStart;
+	u32    vromEnd;
+	void32 vramStart;
+	void32 vramEnd;
+	void32 unk_14;
+	void32 init;
+	void32 destroy;
+	void32 unk_20;
+	void32 unk_24;
+	s32    unk_28;
+	u32    instanceSize;
+} GameStateEntry;
 
 typedef struct {
 	s16   id;
@@ -30,7 +30,7 @@ typedef struct {
 	void* draw;
 } ActorInit;
 
-typedef struct {
+typedef struct ActorEntry {
 	u32    vromStart;
 	u32    vromEnd;
 	void32 vramStart;
@@ -40,19 +40,74 @@ typedef struct {
 	void32 name;
 	u16    allocType;
 	s8 numLoaded;
-} ActorOverlay;
+} ActorEntry;
 
-typedef struct {
+typedef struct DmaEntry {
 	u32 vromStart;
 	u32 vromEnd;
 	u32 romStart;
 	u32 romEnd;
 } DmaEntry;
 
-typedef struct {
+typedef struct ObjectEntry {
 	u32 vromStart;
 	u32 vromEnd;
-} VRomFile;
+} ObjectEntry;
+
+typedef struct SceneEntry {
+	u32 vromStart;
+	u32 vromEnd;
+	u32 titleVromStart;
+	u32 titleVromEnd;
+	u8  unk_10;
+	u8  config;
+	u8  unk_12;
+	u8  unk_13;
+} SceneEntry;
+
+typedef enum SampleMedium {
+	/* 0 */ MEDIUM_RAM,
+	/* 1 */ MEDIUM_UNK,
+	/* 2 */ MEDIUM_CART,
+	/* 3 */ MEDIUM_DISK_DRIVE
+} AttPacked SampleMedium;
+
+typedef enum SeqPlayer {
+	/* 0 */ SEQPLAY_SFX,
+	/* 1 */ SEQPLAY_FANFARE,
+	/* 2 */ SEQPLAY_BGM,
+	/* 3 */ SEQPLAY_DEMO_SFX
+} AttPacked SeqPlayer;
+
+typedef struct AudioEntry {
+	u32 romAddr;
+	u32 size;
+	SampleMedium medium;
+	u8  cachePolicy;
+	s16 shortData1;
+	s16 shortData2;
+	s16 shortData3;
+} AudioEntry;
+
+typedef struct SoundFontEntry {
+	void32       romAddr;
+	u32          size;
+	SampleMedium medium;
+	SeqPlayer    seqPlayer;
+	u8  audioTable1;
+	u8  audioTable2;
+	u8  numInst;
+	u8  numDrum;
+	u16 numSfx;
+} SoundFontEntry;
+
+typedef struct AudioEntryHead {
+	s16  numEntries;
+	s16  unkMediumParam;
+	u32  romAddr;
+	char pad[0x8];
+	SoundFontEntry entries[];
+} AudioEntryHead;
 
 typedef struct {
 	union {
@@ -66,12 +121,13 @@ typedef struct {
 
 struct Rom;
 
-#define Dma_RomFile_Proto(type, PART, name) \
-	Dma_RomFile_Get ## name(struct Rom* rom, s32 id)
+#define Dma_RomFile_Proto(name) \
+	Dma_RomFile_ ## name(struct Rom* rom, s32 id)
 
-RomFile Dma_RomFile_Proto(VRomFile, objectTable, Object);
-RomFile Dma_RomFile_Proto(ActorOverlay, actorTable, Actor);
-RomFile Dma_RomFile_Proto(DmaEntry, dmaTable, DmaEntry);
-RomFile Dma_RomFile_Proto(GameStateOverlay, stateTable, State);
+RomFile Dma_RomFile_Proto(Object);
+RomFile Dma_RomFile_Proto(Actor);
+RomFile Dma_RomFile_Proto(DmaEntry);
+RomFile Dma_RomFile_Proto(GameState);
+RomFile Dma_RomFile_Proto(Scene);
 
 #endif

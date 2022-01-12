@@ -90,6 +90,7 @@ typedef enum {
 	SWAP_U64 = 8,
 	SWAP_F80 = 10
 } SwapSize;
+
 typedef union {
 	void* p;
 	u8*   u8;
@@ -123,18 +124,22 @@ typedef struct MemFile {
 	} info;
 } MemFile;
 
+void SetSegment(u8 id, void* segment);
+void* SegmentedToVirtual(u8 id, void32 ptr);
+
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
 void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i);
 void printf_toolinfo(const char* toolname, const char* fmt, ...);
 void printf_debug(const char* fmt, ...);
-void printf_debug_al(const char* info, const char* fmt, ...);
+void printf_debug_align(const char* info, const char* fmt, ...);
 void printf_warning(const char* fmt, ...);
-void printf_warning_al(const char* info, const char* fmt, ...);
+void printf_warning_align(const char* info, const char* fmt, ...);
 void printf_error(const char* fmt, ...);
-void printf_error_al(const char* info, const char* fmt, ...);
+void printf_error_align(const char* info, const char* fmt, ...);
 void printf_info(const char* fmt, ...);
-void printf_info_al(const char* info, const char* fmt, ...);
+void printf_info_align(const char* info, const char* fmt, ...);
+void printf_progress(const char* info, u32 a, u32 b);
 void printf_WinFix();
 
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
@@ -145,9 +150,7 @@ void* Lib_Realloc(void* data, s32 size);
 void* Lib_Free(void* data);
 s32 Lib_Touch(char* file);
 void Lib_ByteSwap(void* src, s32 size);
-void Lib_MakeDir(const char* dir);
-void Lib_SetSeg(void* segment);
-void* Lib_SegToPtr(void32 ptr);
+void Lib_MakeDir(char* dir);
 
 void* File_Load(void* destSize, char* filepath);
 void File_Save(char* filepath, void* src, s32 size);
@@ -313,6 +316,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 
 #define String_Copy(dst, src)   strcpy(dst, src)
 #define String_Merge(dst, src)  strcat(dst, src)
+#define String_SMerge(dst, ...) sprintf(dst + strlen(dst), __VA_ARGS__);
 #define String_Generate(string) strdup(string)
 #define String_IsDiff(a, b)     strcmp(a, b)
 
@@ -343,19 +347,40 @@ extern PrintfSuppressLevel gPrintfSuppress;
 		defval \
 )
 
+#define Config_WriteVar_Int(name, defval) MemFile_Printf( \
+		config, \
+		"%-15s = %-8d\n", \
+		# name, \
+		defval \
+)
+
+#define Config_WriteVar_Flo(name, defval) MemFile_Printf( \
+		config, \
+		"%-15s = %f\n", \
+		# name, \
+		defval \
+)
+
+#define Config_WriteVar_Str(name, defval) MemFile_Printf( \
+		config, \
+		"%-15s = %s\n", \
+		# name, \
+		# defval \
+)
+
 #ifndef NDEBUG
 	#define printf_debugExt(...) if (gPrintfSuppress <= PSL_DEBUG) { \
-			printf(PRNT_DGRY "[debg]: " PRNT_REDD "%-16s " PRNT_RSET "[ " PRNT_GRAY "LINE %d" PRNT_RSET " ]\n", __FUNCTION__, __LINE__); \
+			printf(PRNT_DGRY "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
 			printf_debug(__VA_ARGS__); \
 	}
 	
-	#define printf_debugExt_al(title, ...) if (gPrintfSuppress <= PSL_DEBUG) { \
-			printf(PRNT_DGRY "[debg]: " PRNT_REDD "%-16s " PRNT_RSET "[ " PRNT_GRAY "LINE %d" PRNT_RSET " ]\n", __FUNCTION__, __LINE__); \
-			printf_debug_al(title, __VA_ARGS__); \
+	#define printf_debugExt_align(title, ...) if (gPrintfSuppress <= PSL_DEBUG) { \
+			printf(PRNT_DGRY "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
+			printf_debug_align(title, __VA_ARGS__); \
 	}
 	
 	#define Assert(exp) if (!(exp)) { \
-			printf(PRNT_DGRY "[debg]: " PRNT_REDD "%-16s " PRNT_RSET "[ " PRNT_GRAY "LINE %d" PRNT_RSET " ]\n", __FUNCTION__, __LINE__); \
+			printf(PRNT_DGRY "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
 			printf_debug(PRNT_YELW "OsAssert(\a " PRNT_RSET # exp PRNT_YELW " );"); \
 			exit(EXIT_FAILURE); \
 	}
@@ -363,18 +388,23 @@ extern PrintfSuppressLevel gPrintfSuppress;
     #ifndef __EXTLIB_C__
 		
 		#define Lib_Malloc(data, size) Lib_Malloc(data, size); \
-			printf_debugExt_al("Lib_Malloc", "0x%X", size);
+			printf_debugExt_align("Lib_Malloc", "0x%X", size);
 		
 		#define Lib_Calloc(data, size) Lib_Calloc(data, size); \
-			printf_debugExt_al("Lib_Calloc", "0x%X", size);
+			printf_debugExt_align("Lib_Calloc", "0x%X", size);
 		
     #endif
 #else
 	#define printf_debugExt(...)
-	#define printf_debugExt_al(title, ...)
+	#define printf_debugExt_align(title, ...)
 	#define Assert(exp)
 #endif
 
 #define Main(y1, y2) main(y1, y2)
+
+#define ParArg(arg) Lib_ParseArguments(argv, arg, &parArg)
+
+#define AttPacked __attribute__ ((packed))
+#define AttAligned(x) __attribute__((aligned(x)))
 
 #endif /* __EXTLIB_H__ */
