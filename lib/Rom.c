@@ -141,14 +141,14 @@ static void Rom_Config_Instrument(MemFile* config, Instrument* instrument, char*
 static s32 Rom_Extract(MemFile* mem, RomFile rom, char* name) {
 	Lib_MakeDir(String_GetPath(name));
 	if (rom.size == 0)
-		return 1;
+		return 0;
 	MemFile_Clear(mem);
 	mem->dataSize = rom.size;
 	MemFile_Realloc(mem, rom.size);
 	MemFile_Write(mem, rom.data, rom.size);
 	MemFile_SaveFile(mem, name);
 	
-	return 0;
+	return 1;
 }
 
 void Rom_Dump_Audio(Rom* rom, MemFile* dataFile, MemFile* config) {
