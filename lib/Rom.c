@@ -221,7 +221,7 @@ static s32 Rom_Extract(MemFile* mem, RomFile rom, char* name) {
 	return 1;
 }
 
-void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
+static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	AudioEntryHead* head = SegmentedToVirtual(0, gSoundFontTable);
 	AudioEntryHead* sampHead = SegmentedToVirtual(0, gSampleBankTable);
 	SoundFontEntry* entry;
@@ -292,7 +292,7 @@ void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	SetSegment(0x1, NULL);
 }
 
-void Rom_Dump_Sequences(Rom* rom, MemFile* dataFile, MemFile* config) {
+static void Rom_Dump_Sequences(Rom* rom, MemFile* dataFile, MemFile* config) {
 	AudioEntryHead* head = SegmentedToVirtual(0, gSequenceTable);
 	SoundFontEntry* entry;
 	RomFile romFile;
@@ -315,7 +315,7 @@ void Rom_Dump_Sequences(Rom* rom, MemFile* dataFile, MemFile* config) {
 	Dir_Leave();
 }
 
-void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
+static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 	Sample* smallest = sDumpTBL;
 	Sample* largest = sDumpTBL;
 	RomFile rf;
