@@ -89,7 +89,6 @@ void Dir_Leave(void) {
 }
 
 void Dir_Make(char* dir, ...) {
-	struct stat st = { 0 };
 	char buffer[256 * 4];
 	char argBuf[256 * 4];
 	
@@ -110,7 +109,7 @@ void Dir_MakeCurrent(void) {
 	if (stat(sCurrentPath, &st) == -1) {
 		#ifdef _WIN32
 			if (mkdir(sCurrentPath)) {
-				printf_error_align("mkdir", "%s", buffer);
+				printf_error_align("mkdir", "%s", sCurrentPath);
 			}
 		#else
 			if (mkdir(sCurrentPath, 0700)) {

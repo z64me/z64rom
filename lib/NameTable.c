@@ -1125,7 +1125,7 @@ char* gSequenceName[] = {
 	"EnterZelda",
 	"GoodbyetoZelda",
 	"MasterSword",
-	"Intro-Ganon	",
+	"Intro-Ganon",
 	"Shop",
 	"ChamberoftheSages",
 	"FileSelect",

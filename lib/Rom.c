@@ -187,10 +187,7 @@ static void Rom_Config_Drum(MemFile* config, Drum* drum, char* name, char* out, 
 }
 
 static void Rom_Config_Sample(MemFile* config, Sample* sample, char* name, char* out) {
-	AdpcmBook* book = SegmentedToVirtual(0x0, sample->book);
 	AdpcmLoop* loop = SegmentedToVirtual(0x0, sample->loop);
-	u32 val;
-	f32* f = (f32*)&val;
 	
 	MemFile_Clear(config);
 	Config_WriteTitle_Str(name);
@@ -408,73 +405,72 @@ void Rom_Dump(Rom* rom) {
 	MemFile dataFile;
 	MemFile config;
 	RomFile rf;
-	char buffer[256 * 4];
 	
 	MemFile_Malloc(&dataFile, 0x460000); // Slightly larger than audiotable
 	MemFile_Malloc(&config, 0x25000);
 	
 	Dir_Enter("rom/");
 	printf_info_align("Dump Rom", PRNT_YELW "%s", rom->file.info.name);
-	#if 0
-		Dir_Enter("actor/"); {
-			for (s32 i = 0; i < ACTOR_ID_MAX; i++) {
-				rf = Dma_RomFile_Actor(rom, i);
-				
-				if (rf.size == 0)
-					continue;
-				
-				printf_progress("Actor", i + 1, ACTOR_ID_MAX);
-				Dir_Enter("0x%04X-%s/", i, gActorName[i]); {
-					if (Rom_Extract(&dataFile, rf, Dir_File("actor.zovl")))
-						Rom_Config_Actor(&config, &rom->actorTable[i], gActorName[i], Dir_File("config.cfg"));
-				} Dir_Leave();
-			}
-		} Dir_Leave();
-		
-		Dir_Enter("object/"); {
-			for (s32 i = 0; i < OBJECT_ID_MAX; i++) {
-				rf = Dma_RomFile_Object(rom, i);
-				
-				if (rf.size == 0)
-					continue;
-				
-				printf_progress("Object", i + 1, OBJECT_ID_MAX);
-				Dir_Enter("0x%04X-%s/", i, gObjectName[i]); {
-					Rom_Extract(&dataFile, rf, Dir_File("object.zobj"));
-				} Dir_Leave();
-			}
-		} Dir_Leave();
-		
-		Dir_Enter("system/"); {
-			for (s32 i = 0; i < GAMESTATE_ID_MAX; i++) {
-				rf = Dma_RomFile_GameState(rom, i);
-				
-				if (rf.size == 0)
-					continue;
-				
-				printf_progress("System", i + 1, GAMESTATE_ID_MAX);
-				Dir_Enter("0x%02X-%s/", i, gStateName[i]); {
-					if (Rom_Extract(&dataFile, rf, Dir_File("state.zovl")))
-						Rom_Config_GameState(&config, &rom->stateTable[i], gStateName[i], Dir_File("config.cfg"));
-				} Dir_Leave();
-			}
-		} Dir_Leave();
-		
-		Dir_Enter("scene/"); {
-			for (s32 i = 0; i < SCENE_ID_MAX; i++) {
-				rf = Dma_RomFile_Scene(rom, i);
-				
-				if (rf.size == 0)
-					continue;
-				
-				printf_progress("Scene", i + 1, SCENE_ID_MAX);
-				Dir_Enter("0x%02X-%s/", i, gSceneName[i]); {
-					if (Rom_Extract(&dataFile, rf, Dir_File("scene.zscene")))
-						Rom_Config_Scene(&config, &rom->sceneTable[i], gSceneName[i], Dir_File("config.cfg"));
-				} Dir_Leave();
-			}
-		} Dir_Leave();
-	#endif
+	
+	Dir_Enter("actor/"); {
+		for (s32 i = 0; i < ACTOR_ID_MAX; i++) {
+			rf = Dma_RomFile_Actor(rom, i);
+			
+			if (rf.size == 0)
+				continue;
+			
+			printf_progress("Actor", i + 1, ACTOR_ID_MAX);
+			Dir_Enter("0x%04X-%s/", i, gActorName[i]); {
+				if (Rom_Extract(&dataFile, rf, Dir_File("actor.zovl")))
+					Rom_Config_Actor(&config, &rom->actorTable[i], gActorName[i], Dir_File("config.cfg"));
+			} Dir_Leave();
+		}
+	} Dir_Leave();
+	
+	Dir_Enter("object/"); {
+		for (s32 i = 0; i < OBJECT_ID_MAX; i++) {
+			rf = Dma_RomFile_Object(rom, i);
+			
+			if (rf.size == 0)
+				continue;
+			
+			printf_progress("Object", i + 1, OBJECT_ID_MAX);
+			Dir_Enter("0x%04X-%s/", i, gObjectName[i]); {
+				Rom_Extract(&dataFile, rf, Dir_File("object.zobj"));
+			} Dir_Leave();
+		}
+	} Dir_Leave();
+	
+	Dir_Enter("system/"); {
+		for (s32 i = 0; i < GAMESTATE_ID_MAX; i++) {
+			rf = Dma_RomFile_GameState(rom, i);
+			
+			if (rf.size == 0)
+				continue;
+			
+			printf_progress("System", i + 1, GAMESTATE_ID_MAX);
+			Dir_Enter("0x%02X-%s/", i, gStateName[i]); {
+				if (Rom_Extract(&dataFile, rf, Dir_File("state.zovl")))
+					Rom_Config_GameState(&config, &rom->stateTable[i], gStateName[i], Dir_File("config.cfg"));
+			} Dir_Leave();
+		}
+	} Dir_Leave();
+	
+	Dir_Enter("scene/"); {
+		for (s32 i = 0; i < SCENE_ID_MAX; i++) {
+			rf = Dma_RomFile_Scene(rom, i);
+			
+			if (rf.size == 0)
+				continue;
+			
+			printf_progress("Scene", i + 1, SCENE_ID_MAX);
+			Dir_Enter("0x%02X-%s/", i, gSceneName[i]); {
+				if (Rom_Extract(&dataFile, rf, Dir_File("scene.zscene")))
+					Rom_Config_Scene(&config, &rom->sceneTable[i], gSceneName[i], Dir_File("config.cfg"));
+			} Dir_Leave();
+		}
+	} Dir_Leave();
+	
 	Dir_Enter("sound/"); {
 		Rom_Dump_SoundFont(rom, &dataFile, &config);
 		Rom_Dump_Sequences(rom, &dataFile, &config);
