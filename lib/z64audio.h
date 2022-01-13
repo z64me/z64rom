@@ -15,11 +15,23 @@ typedef struct AdpcmBook {
 } AttAligned(16) AdpcmBook;
 
 typedef struct Sample {
-	u32 codec : 4;
-	u32 medium : 2;
-	u32 unk_bit26 : 1;
-	u32 unk_bit25 : 1;
-	u32 size : 24;
+	union {
+		struct {
+			u32 codec     : 4;
+			u32 medium    : 2;
+			u32 unk_bit26 : 1;
+			u32 unk_bit25 : 1;
+			u32 size      : 24;
+		} infoBE;
+		struct {
+			u32 size      : 24;
+			u32 unk_bit25 : 1;
+			u32 unk_bit26 : 1;
+			u32 medium    : 2;
+			u32 codec     : 4;
+		} infoLE;
+		u32 data;
+	};
 	void32 sampleAddr; // u8*
 	void32 loop; // AdpcmLoop*
 	void32 book; // AdpcmBook*
@@ -50,7 +62,7 @@ typedef struct Instrument {
 } Instrument; // size >= 0x20
 
 typedef struct {
-	u8     releaseRate;
+	u8     release;
 	u8     pan;
 	u8     loaded;
 	Sound  sound;

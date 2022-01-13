@@ -124,8 +124,24 @@ typedef struct MemFile {
 	} info;
 } MemFile;
 
-void SetSegment(u8 id, void* segment);
-void* SegmentedToVirtual(u8 id, void32 ptr);
+typedef enum {
+	DIR__MAKE_ON_ENTER = (1) << 0,
+} DirParam;
+
+void SetSegment(const u8 id, void* segment);
+void* SegmentedToVirtual(const u8 id, void32 ptr);
+void32 VirtualToSegmented(const u8 id, void* ptr);
+
+void Dir_SetParam(DirParam w);
+void Dir_UnsetParam(DirParam w);
+void Dir_Set(char* path, ...);
+void Dir_Enter(char* ent, ...);
+void Dir_Leave(void);
+void Dir_Make(char* dir, ...);
+void Dir_MakeCurrent(void);
+char* Dir_Current(void);
+char* Dir_File(char* fmt, ...);
+void MakeDir(char* dir, ...);
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
@@ -150,7 +166,6 @@ void* Lib_Realloc(void* data, s32 size);
 void* Lib_Free(void* data);
 s32 Lib_Touch(char* file);
 void Lib_ByteSwap(void* src, s32 size);
-void Lib_MakeDir(char* dir);
 
 void* File_Load(void* destSize, char* filepath);
 void File_Save(char* filepath, void* src, s32 size);
@@ -342,14 +357,14 @@ extern PrintfSuppressLevel gPrintfSuppress;
 
 #define Config_WriteVar_Hex(name, defval) MemFile_Printf( \
 		config, \
-		"%-15s = 0x%-8X\n", \
+		"%-15s = 0x%X\n", \
 		# name, \
 		defval \
 )
 
 #define Config_WriteVar_Int(name, defval) MemFile_Printf( \
 		config, \
-		"%-15s = %-8d\n", \
+		"%-15s = %d\n", \
 		# name, \
 		defval \
 )
@@ -366,6 +381,32 @@ extern PrintfSuppressLevel gPrintfSuppress;
 		"%-15s = %s\n", \
 		# name, \
 		# defval \
+)
+
+#define __Config_WriteVar_Hex(name, defval) MemFile_Printf( \
+		config, \
+		"%-15s = 0x%X\n", \
+		name, \
+		defval \
+)
+
+#define __Config_WriteVar_Flo(name, defval) MemFile_Printf( \
+		config, \
+		"%-15s = %f\n", \
+		name, \
+		defval \
+)
+
+#define __Config_WriteVar_Str(name, defval) MemFile_Printf( \
+		config, \
+		"%-15s = %s\n", \
+		name, \
+		# defval \
+)
+
+#define Config_SPrintf(...) MemFile_Printf( \
+		config, \
+		__VA_ARGS__ \
 )
 
 #ifndef NDEBUG

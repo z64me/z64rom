@@ -36,5 +36,6 @@ extern char* gActorName[];
 extern char* gStateName[];
 extern char* gSceneName[];
 extern char* gBankName[];
+extern char* gSequenceName[];
 
 #endif

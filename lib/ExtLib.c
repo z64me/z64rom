@@ -16,6 +16,7 @@ PrintfSuppressLevel gPrintfSuppress = 0;
 char* sPrintfPrefix = "ExtLib";
 u8 sPrintfType = 1;
 u8* sSegment[255];
+char sCurrentPath[256 * 4];
 char* sPrintfPreType[][4] = {
 	{
 		NULL,
@@ -30,16 +31,136 @@ char* sPrintfPreType[][4] = {
 		"info"
 	}
 };
+DirParam sDirParam;
 
-void SetSegment(u8 id, void* segment) {
+void SetSegment(const u8 id, void* segment) {
 	sSegment[id] = segment;
 }
 
-void* SegmentedToVirtual(u8 id, void32 ptr) {
+void* SegmentedToVirtual(const u8 id, void32 ptr) {
 	if (sSegment[id] == NULL)
 		printf_error("Segment 0x%X == NULL", id);
 	
 	return &sSegment[id][ptr];
+}
+
+void32 VirtualToSegmented(const u8 id, void* ptr) {
+	return (uPtr)ptr - (uPtr)sSegment[id];
+}
+
+void Dir_SetParam(DirParam w) {
+	sDirParam |= w;
+}
+
+void Dir_UnsetParam(DirParam w) {
+	sDirParam &= ~(w);
+}
+
+void Dir_Set(char* path, ...) {
+	va_list args;
+	
+	memset(sCurrentPath, 0, 1024);
+	va_start(args, path);
+	vsprintf(sCurrentPath, path, args);
+	va_end(args);
+}
+
+void Dir_Enter(char* ent, ...) {
+	va_list args;
+	
+	va_start(args, ent);
+	vsprintf(sCurrentPath + strlen(sCurrentPath), ent, args);
+	va_end(args);
+	if (sDirParam & DIR__MAKE_ON_ENTER) {
+		Dir_MakeCurrent();
+	} else {
+		struct stat st = { 0 };
+		if (stat(sCurrentPath, &st) == -1)
+			printf_error_align("Can't enter", "%s", sCurrentPath);
+	}
+}
+
+void Dir_Leave(void) {
+	char* new;
+	
+	sCurrentPath[strlen(sCurrentPath) - 1] = '\0';
+	new = String_GetPath(sCurrentPath);
+	memmove(sCurrentPath, new, strlen(new) + 1);
+}
+
+void Dir_Make(char* dir, ...) {
+	struct stat st = { 0 };
+	char buffer[256 * 4];
+	char argBuf[256 * 4];
+	
+	va_list args;
+	
+	va_start(args, dir);
+	String_Copy(buffer, sCurrentPath);
+	vsprintf(argBuf, dir, args);
+	String_Merge(buffer, argBuf);
+	
+	MakeDir(buffer);
+	va_end(args);
+}
+
+void Dir_MakeCurrent(void) {
+	struct stat st = { 0 };
+	
+	if (stat(sCurrentPath, &st) == -1) {
+		#ifdef _WIN32
+			if (mkdir(sCurrentPath)) {
+				printf_error_align("mkdir", "%s", buffer);
+			}
+		#else
+			if (mkdir(sCurrentPath, 0700)) {
+				printf_error_align("mkdir", "%s", sCurrentPath);
+			}
+		#endif
+	}
+}
+
+char* Dir_Current(void) {
+	return sCurrentPath;
+}
+
+char* Dir_File(char* fmt, ...) {
+	static char buffer[256 * 4];
+	char argBuf[256 * 4];
+	
+	va_list args;
+	
+	va_start(args, fmt);
+	String_Copy(buffer, sCurrentPath);
+	vsprintf(argBuf, fmt, args);
+	String_Merge(buffer, argBuf);
+	
+	va_end(args);
+	
+	return buffer;
+}
+
+void MakeDir(char* dir, ...) {
+	struct stat st = { 0 };
+	char buffer[256 * 4];
+	
+	va_list args;
+	
+	va_start(args, dir);
+	vsprintf(buffer, dir, args);
+	
+	if (stat(buffer, &st) == -1) {
+		#ifdef _WIN32
+			if (mkdir(buffer)) {
+				printf_error_align("mkdir", "%s", buffer);
+			}
+		#else
+			if (mkdir(buffer, 0700)) {
+				printf_error_align("mkdir", "%s", buffer);
+			}
+		#endif
+	}
+	va_end(args);
 }
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
@@ -440,23 +561,6 @@ s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg) {
 	}
 	
 	return 0;
-}
-
-void Lib_MakeDir(char* dir) {
-	struct stat st = { 0 };
-	char* buffer = String_GetPath(dir);
-	
-	if (stat(buffer, &st) == -1) {
-		#ifdef _WIN32
-			if (mkdir(buffer)) {
-				printf_error_align("mkdir", "%s", buffer);
-			}
-		#else
-			if (mkdir(buffer, 0700)) {
-				printf_error_align("mkdir", "%s", buffer);
-			}
-		#endif
-	}
 }
 
 // File

@@ -10,6 +10,7 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	printf_WinFix();
 	printf_SetPrefix("");
+	Dir_SetParam(DIR__MAKE_ON_ENTER);
 	if (ParArg("-d"))
 		printf_SetSuppressLevel(PSL_DEBUG);
 	
@@ -20,6 +21,11 @@ s32 Main(s32 argc, char* argv[]) {
 	if (ParArg("-D"))
 		Rom_Dump(rom);
 	rom = Rom_Free(rom);
+	
+	// printf_info("Press enter to exit.");
+	// getchar();
+	
+	return 0;
 }
 
 void CheckTypes() {

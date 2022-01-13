@@ -28,6 +28,9 @@ all: linux win32
 linux: $(SOURCE_O_LINUX) z64rom
 win32: $(SOURCE_O_WIN32) bin/icon.o z64rom.exe
 
+clear:
+	@rm -f -R rom/*
+
 clean:
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find bin/* -type f)$(PRNT_RSET)]"
 	@rm -f $(shell find bin/* -type f)
