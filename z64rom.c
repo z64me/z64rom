@@ -1,4 +1,4 @@
-#include <lib/z64rom.h>
+#include "lib/z64rom.h"
 
 char* sToolName = "z64rom 0.1 alpha";
 
