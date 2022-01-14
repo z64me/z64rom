@@ -15,6 +15,12 @@ typedef struct Rom {
 	GameStateEntry* stateTable;
 } Rom;
 
+typedef struct SampleInfo {
+	u32   sampleRate;
+	u8    halfPrec;
+	char* name;
+} SampleInfo;
+
 extern u32 gDmaDataTable;
 extern u32 gObjectTable;
 extern u32 gActorOverlayTable;
