@@ -19,6 +19,16 @@ typedef struct {
 } GameStateEntry;
 
 typedef struct {
+	void32 loadedRamAddr;
+	u32    vromStart;
+	u32    vromEnd;
+	void32 vramStart;
+	void32 vramEnd;
+	u32    offset; // loadedRamAddr - vramStart
+	void32 name;
+} KaleidoEntry; // size = 0x1C
+
+typedef struct {
 	s16   id;
 	u8    category;
 	u32   flags;

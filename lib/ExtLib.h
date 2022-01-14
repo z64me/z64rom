@@ -207,6 +207,7 @@ char* String_GetBasename(char* src);
 char* String_GetFilename(char* src);
 void String_Insert(char* point, char* insert);
 void String_Remove(char* point, s32 amount);
+s32 String_Replace(char* src, char* word, char* replacement);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
@@ -337,7 +338,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 
 #define Config_WriteTitle(title) MemFile_Printf( \
 		config, \
-		# title \
+		title \
 )
 
 #define Config_WriteTitle_Str(title) MemFile_Printf( \
@@ -350,7 +351,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 		config, \
 		com1 \
 		"%-15s = %-10s # %s\n\n", \
-		# name, \
+		name, \
 		# defval, \
 		com2 \
 )
@@ -358,50 +359,29 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define Config_WriteVar_Hex(name, defval) MemFile_Printf( \
 		config, \
 		"%-15s = 0x%X\n", \
-		# name, \
+		name, \
 		defval \
 )
 
 #define Config_WriteVar_Int(name, defval) MemFile_Printf( \
 		config, \
 		"%-15s = %d\n", \
-		# name, \
+		name, \
 		defval \
 )
 
 #define Config_WriteVar_Flo(name, defval) MemFile_Printf( \
 		config, \
 		"%-15s = %f\n", \
-		# name, \
+		name, \
 		defval \
 )
 
 #define Config_WriteVar_Str(name, defval) MemFile_Printf( \
 		config, \
 		"%-15s = %s\n", \
-		# name, \
-		# defval \
-)
-
-#define __Config_WriteVar_Hex(name, defval) MemFile_Printf( \
-		config, \
-		"%-15s = 0x%X\n", \
 		name, \
 		defval \
-)
-
-#define __Config_WriteVar_Flo(name, defval) MemFile_Printf( \
-		config, \
-		"%-15s = %f\n", \
-		name, \
-		defval \
-)
-
-#define __Config_WriteVar_Str(name, defval) MemFile_Printf( \
-		config, \
-		"%-15s = %s\n", \
-		name, \
-		# defval \
 )
 
 #define Config_SPrintf(...) MemFile_Printf( \
@@ -422,7 +402,7 @@ extern PrintfSuppressLevel gPrintfSuppress;
 	
 	#define Assert(exp) if (!(exp)) { \
 			printf(PRNT_DGRY "[dbgX]: " PRNT_CYAN "%-16s " PRNT_REDD "%s" PRNT_GRAY ": " PRNT_YELW "%d" PRNT_RSET "\n", __FUNCTION__, __FILE__, __LINE__); \
-			printf_debug(PRNT_YELW "OsAssert(\a " PRNT_RSET # exp PRNT_YELW " );"); \
+			printf_debug(PRNT_YELW "Assert(\a " PRNT_RSET # exp PRNT_YELW " );"); \
 			exit(EXIT_FAILURE); \
 	}
 	

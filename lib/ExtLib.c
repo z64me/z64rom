@@ -725,6 +725,7 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 		}
 	} else {
 		MemFile_Realloc(memFile, tempSize);
+		memFile->dataSize = tempSize;
 	}
 	
 	rewind(file);
@@ -769,6 +770,7 @@ s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
 		}
 	} else {
 		MemFile_Realloc(memFile, tempSize);
+		memFile->dataSize = tempSize;
 	}
 	
 	rewind(file);
@@ -1179,6 +1181,22 @@ void String_Remove(char* point, s32 amount) {
 	
 	memcpy(point, get, strlen(get));
 	point[len] = 0;
+}
+
+s32 String_Replace(char* src, char* word, char* replacement) {
+	s32 diff = 0;
+	char* ptr;
+	
+	ptr = String_MemMem(src, word);
+	
+	while (ptr != NULL) {
+		String_Remove(ptr, strlen(word));
+		String_Insert(ptr, replacement);
+		diff += strlen(replacement) - strlen(word);
+		ptr = String_MemMem(src, word);
+	}
+	
+	return diff;
 }
 
 void String_SwapExtension(char* dest, char* src, const char* ext) {

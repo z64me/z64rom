@@ -12,14 +12,21 @@ typedef struct Rom {
 	ActorEntry*     actorTable;
 	SceneEntry*     sceneTable;
 	ObjectEntry*    objectTable;
+	KaleidoEntry*   kaleidoTable;
 	GameStateEntry* stateTable;
 } Rom;
 
 typedef struct SampleInfo {
 	u32   sampleRate;
 	u8    halfPrec;
+	struct SampleInfo* dublicate;
 	char* name;
 } SampleInfo;
+
+typedef struct IndexInfo {
+	u32  romAddress;
+	char file[256 * 2];
+} IndexInfo;
 
 extern u32 gDmaDataTable;
 extern u32 gObjectTable;
@@ -43,5 +50,6 @@ extern char* gStateName[];
 extern char* gSceneName[];
 extern char* gBankName[];
 extern char* gSequenceName[];
+extern SampleInfo gSampleInfo[];
 
 #endif

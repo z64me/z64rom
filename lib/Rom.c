@@ -5,6 +5,7 @@ u32 gObjectTable = 0xB9E6C8;
 u32 gActorOverlayTable = 0xB8D440;
 u32 gGameStateOverlayTable = 0xB969D0;
 u32 gSceneTable = 0xBA0BB0;
+u32 gKaleidoTable = 0xBA4340;
 
 // ?
 u32 gSequenceFontTable = 0xBCC4E0;
@@ -26,61 +27,87 @@ u32 SCENE_ID_MAX = 110;
 u32 ACTOR_ID_MAX = 471;
 u32 GAMESTATE_ID_MAX = 6;
 u32 DMA_ID_MAX = 1548;
+u32 KALEIDO_ID_MAX = 2;
 
-Sample sDumpTBL[1800];
+char sBankFiles[1800][256];
+u32 sBankNum;
+Sample sUnsortedSampleTbl[1800];
+Sample* sSortedSampleTbl[1800];
 u32 sDumpID;
-Sample* sSortTBL[1800];
 u32 sSortID;
 
 static void Rom_Config_Actor(MemFile* config, ActorEntry* actorOvl, char* name, char* out) {
-	char buffer[256 * 4];
-	
-	sprintf(buffer, "%s%s", String_GetPath(out), "config.cfg");
 	MemFile_Clear(config);
 	Config_WriteTitle_Str(name);
-	Config_WriteVar_Hex(vram_addr, ReadBE(actorOvl->vramStart));
-	Config_WriteVar_Hex(init_vars, ReadBE(actorOvl->initInfo));
-	Config_WriteVar_Int(alloc_type, ReadBE(actorOvl->allocType));
-	MemFile_SaveFile(config, buffer);
+	Config_WriteVar_Hex("vram_addr", ReadBE(actorOvl->vramStart));
+	Config_WriteVar_Hex("init_vars", ReadBE(actorOvl->initInfo));
+	Config_WriteVar_Int("alloc_type", ReadBE(actorOvl->allocType));
+	MemFile_SaveFile_String(config, out);
 }
 
 static void Rom_Config_GameState(MemFile* config, GameStateEntry* stateOvl, char* name, char* out) {
-	char buffer[256 * 4];
-	
-	sprintf(buffer, "%s%s", String_GetPath(out), "config.cfg");
 	MemFile_Clear(config);
 	Config_WriteTitle_Str(name);
-	Config_WriteVar_Hex(vram_addr, ReadBE(stateOvl->vramStart));
-	Config_WriteVar_Hex(init_func, ReadBE(stateOvl->init));
-	Config_WriteVar_Hex(dest_func, ReadBE(stateOvl->destroy));
-	MemFile_SaveFile(config, buffer);
+	Config_WriteVar_Hex("vram_addr", ReadBE(stateOvl->vramStart));
+	Config_WriteVar_Hex("init_func", ReadBE(stateOvl->init));
+	Config_WriteVar_Hex("dest_func", ReadBE(stateOvl->destroy));
+	MemFile_SaveFile_String(config, out);
+}
+
+static void Rom_Config_Player(MemFile* config, KaleidoEntry* player, char* name, char* out) {
+	u16* dataHi;
+	u16* dataLo;
+	u32 init;
+	u32 dest;
+	u32 updt;
+	u32 draw;
+	
+	dataHi = SegmentedToVirtual(0x0, 0x00B288F8);
+	dataLo = SegmentedToVirtual(0x0, 0x00B28900);
+	init = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
+	
+	dataHi = SegmentedToVirtual(0x0, 0x00B28908);
+	dataLo = SegmentedToVirtual(0x0, 0x00B28914);
+	dest = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
+	
+	dataHi = SegmentedToVirtual(0x0, 0x00B2891C);
+	dataLo = SegmentedToVirtual(0x0, 0x00B28928);
+	updt = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
+	
+	dataHi = SegmentedToVirtual(0x0, 0x00B28930);
+	dataLo = SegmentedToVirtual(0x0, 0x00B2893C);
+	draw = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
+	
+	MemFile_Clear(config);
+	Config_WriteTitle_Str(name);
+	Config_WriteVar_Hex("vram_addr", ReadBE(player->vramStart));
+	Config_WriteVar_Hex("init", init);
+	Config_WriteVar_Hex("dest", dest);
+	Config_WriteVar_Hex("updt", updt);
+	Config_WriteVar_Hex("draw", draw);
+	MemFile_SaveFile_String(config, out);
 }
 
 static void Rom_Config_Scene(MemFile* config, SceneEntry* sceneEntry, char* name, char* out) {
-	char buffer[256 * 4];
-	
-	sprintf(buffer, "%s%s", String_GetPath(out), "config.cfg");
 	MemFile_Clear(config);
 	Config_WriteTitle_Str(name);
-	Config_WriteVar_Int(unk_a, ReadBE(sceneEntry->unk_10));
-	Config_WriteVar_Int(unk_b, ReadBE(sceneEntry->unk_12));
-	Config_WriteVar_Int(shader, ReadBE(sceneEntry->config));
-	MemFile_SaveFile(config, buffer);
+	Config_WriteVar_Int("unk_a", ReadBE(sceneEntry->unk_10));
+	Config_WriteVar_Int("unk_b", ReadBE(sceneEntry->unk_12));
+	Config_WriteVar_Int("shader", ReadBE(sceneEntry->config));
+	MemFile_SaveFile_String(config, out);
 }
 
-#define __Config_Sample(wow) \
-	__Config_WriteVar_Hex(# wow "_sample_id", ReadBE(sample->sampleAddr) + _SampleBank_SegmentRomStart + off); \
-	__Config_WriteVar_Flo(# wow "_tuning", *f); \
-	sDumpTBL[sDumpID].data = sample->data; \
-	sDumpTBL[sDumpID].sampleAddr = ReadBE(sample->sampleAddr) + _SampleBank_SegmentRomStart + off; \
-	sDumpTBL[sDumpID].loop = VirtualToSegmented(0x0, SegmentedToVirtual(0x1, ReadBE(sample->loop))); \
-	sDumpTBL[sDumpID++].book = VirtualToSegmented(0x0, SegmentedToVirtual(0x1, ReadBE(sample->book)))
+#define __Config_Sample(wow, sampletype) \
+	Config_WriteVar_Hex(# wow "_sample", ReadBE(sample->sampleAddr) + _SampleBank_SegmentRomStart + off); \
+	Config_WriteVar_Flo(# wow "_tuning", *f); \
+	sUnsortedSampleTbl[sDumpID].data = sample->data; \
+	sUnsortedSampleTbl[sDumpID].sampleAddr = ReadBE(sample->sampleAddr) + _SampleBank_SegmentRomStart + off; \
+	sUnsortedSampleTbl[sDumpID].loop = VirtualToSegmented(0x0, SegmentedToVirtual(0x1, ReadBE(sample->loop))); \
+	sUnsortedSampleTbl[sDumpID++].book = VirtualToSegmented(0x0, SegmentedToVirtual(0x1, ReadBE(sample->book)));
 
 #define __Config_Sample_NULL(wow) \
-	__Config_WriteVar_Str(# wow "_sample_id", NULL); \
-	__Config_WriteVar_Str(# wow "_tuning", NULL); \
-	__Config_WriteVar_Hex(# wow "_book", NULL); \
-	__Config_WriteVar_Hex(# wow "_loop", NULL)
+	Config_WriteVar_Str(# wow "_sample_id", "NULL"); \
+	Config_WriteVar_Str(# wow "_tuning", "NULL");
 
 static void Rom_Config_Instrument(MemFile* config, Instrument* instrument, char* name, char* out, u32 off) {
 	Adsr* envelope = SegmentedToVirtual(0x1, ReadBE(instrument->envelope));
@@ -90,26 +117,26 @@ static void Rom_Config_Instrument(MemFile* config, Instrument* instrument, char*
 	
 	MemFile_Clear(config);
 	Config_WriteTitle_Str("Instrument");
-	Config_WriteVar_Int(loaded, instrument->loaded);
-	Config_WriteVar_Int(split_lo, instrument->splitLo);
-	Config_WriteVar_Int(split_hi, instrument->splitHi);
+	Config_WriteVar_Int("loaded", instrument->loaded);
+	Config_WriteVar_Int("split_lo", instrument->splitLo);
+	Config_WriteVar_Int("split_hi", instrument->splitHi);
 	
 	Config_SPrintf("\n");
 	Config_WriteTitle_Str("Envelope");
-	Config_WriteVar_Int(attack_rate, ReadBE(envelope[0].rate));
-	Config_WriteVar_Int(attack_level, ReadBE(envelope[0].level));
-	Config_WriteVar_Int(hold_rate, ReadBE(envelope[1].rate));
-	Config_WriteVar_Int(hold_level, ReadBE(envelope[1].level));
-	Config_WriteVar_Int(decay_rate, ReadBE(envelope[2].rate));
-	Config_WriteVar_Int(decay_level, ReadBE(envelope[2].level));
-	Config_WriteVar_Int(release, instrument->release);
+	Config_WriteVar_Int("attack_rate", ReadBE(envelope[0].rate));
+	Config_WriteVar_Int("attack_level", ReadBE(envelope[0].level));
+	Config_WriteVar_Int("hold_rate", ReadBE(envelope[1].rate));
+	Config_WriteVar_Int("hold_level", ReadBE(envelope[1].level));
+	Config_WriteVar_Int("decay_rate", ReadBE(envelope[2].rate));
+	Config_WriteVar_Int("decay_level", ReadBE(envelope[2].level));
+	Config_WriteVar_Int("release", instrument->release);
 	
 	Config_SPrintf("\n");
 	Config_WriteTitle_Str("Low Sample");
 	if (instrument->lo.sample != 0) {
 		sample = SegmentedToVirtual(0x1, ReadBE(instrument->lo.sample));
 		val = ReadBE(instrument->lo.swap32);
-		__Config_Sample(low);
+		__Config_Sample(low, ins);
 	} else {
 		__Config_Sample_NULL(low);
 	}
@@ -119,7 +146,7 @@ static void Rom_Config_Instrument(MemFile* config, Instrument* instrument, char*
 	if (instrument->prim.sample != 0) {
 		sample = SegmentedToVirtual(0x1, ReadBE(instrument->prim.sample));
 		val = ReadBE(instrument->prim.swap32);
-		__Config_Sample(prim);
+		__Config_Sample(prim, ins);
 	} else {
 		__Config_Sample_NULL(prim);
 	}
@@ -129,12 +156,12 @@ static void Rom_Config_Instrument(MemFile* config, Instrument* instrument, char*
 	if (instrument->hi.sample != 0) {
 		sample = SegmentedToVirtual(0x1, ReadBE(instrument->hi.sample));
 		val = ReadBE(instrument->hi.swap32);
-		__Config_Sample(hi);
+		__Config_Sample(hi, ins);
 	} else {
 		__Config_Sample_NULL(hi);
 	}
 	
-	MemFile_SaveFile(config, out);
+	MemFile_SaveFile_String(config, out);
 }
 
 static void Rom_Config_Sfx(MemFile* config, Sound* sfx, char* name, char* out, u32 off) {
@@ -146,11 +173,11 @@ static void Rom_Config_Sfx(MemFile* config, Sound* sfx, char* name, char* out, u
 	if (sfx->sample != 0) {
 		Sample* sample = SegmentedToVirtual(0x1, ReadBE(sfx->sample));
 		val = ReadBE(sfx->swap32);
-		__Config_Sample(prim);
+		__Config_Sample(prim, sfx);
 	} else {
 		__Config_Sample_NULL(prim);
 	}
-	MemFile_SaveFile(config, out);
+	MemFile_SaveFile_String(config, out);
 }
 
 static void Rom_Config_Drum(MemFile* config, Drum* drum, char* name, char* out, u32 off) {
@@ -160,30 +187,30 @@ static void Rom_Config_Drum(MemFile* config, Drum* drum, char* name, char* out, 
 	
 	MemFile_Clear(config);
 	Config_WriteTitle_Str("Drum");
-	Config_WriteVar_Int(loaded, drum->loaded);
-	Config_WriteVar_Int(pan, drum->pan);
+	Config_WriteVar_Int("loaded", drum->loaded);
+	Config_WriteVar_Int("pan", drum->pan);
 	
 	Config_SPrintf("\n");
 	Config_WriteTitle_Str("Envelope");
-	Config_WriteVar_Int(attack_rate, ReadBE(envelope[0].rate));
-	Config_WriteVar_Int(attack_level, ReadBE(envelope[0].level));
-	Config_WriteVar_Int(hold_rate, ReadBE(envelope[1].rate));
-	Config_WriteVar_Int(hold_level, ReadBE(envelope[1].level));
-	Config_WriteVar_Int(decay_rate, ReadBE(envelope[2].rate));
-	Config_WriteVar_Int(decay_level, ReadBE(envelope[2].level));
-	Config_WriteVar_Int(release, drum->release);
+	Config_WriteVar_Int("attack_rate", ReadBE(envelope[0].rate));
+	Config_WriteVar_Int("attack_level", ReadBE(envelope[0].level));
+	Config_WriteVar_Int("hold_rate", ReadBE(envelope[1].rate));
+	Config_WriteVar_Int("hold_level", ReadBE(envelope[1].level));
+	Config_WriteVar_Int("decay_rate", ReadBE(envelope[2].rate));
+	Config_WriteVar_Int("decay_level", ReadBE(envelope[2].level));
+	Config_WriteVar_Int("release", drum->release);
 	
 	Config_SPrintf("\n");
 	Config_WriteTitle_Str("Sample");
 	if (drum->sound.sample != 0) {
 		Sample* sample = SegmentedToVirtual(0x1, ReadBE(drum->sound.sample));
 		val = ReadBE(drum->sound.swap32);
-		__Config_Sample(prim);
+		__Config_Sample(prim, drm);
 	} else {
 		__Config_Sample_NULL(prim);
 	}
 	
-	MemFile_SaveFile(config, out);
+	MemFile_SaveFile_String(config, out);
 }
 
 static void Rom_Config_Sample(MemFile* config, Sample* sample, char* name, char* out) {
@@ -191,19 +218,19 @@ static void Rom_Config_Sample(MemFile* config, Sample* sample, char* name, char*
 	
 	MemFile_Clear(config);
 	Config_WriteTitle_Str(name);
-	Config_WriteVar_Int(codec, ReadBE(sample->data) >> (32 - 4));
-	Config_WriteVar_Int(medium, (ReadBE(sample->data) >> (32 - 6)) & 2);
-	Config_WriteVar_Int(bitA, (ReadBE(sample->data) >> (32 - 7)) & 1);
-	Config_WriteVar_Int(bitB, (ReadBE(sample->data) >> (32 - 8)) & 1);
+	Config_WriteVar_Int("codec", ReadBE(sample->data) >> (32 - 4));
+	Config_WriteVar_Int("medium", (ReadBE(sample->data) >> (32 - 6)) & 2);
+	Config_WriteVar_Int("bitA", (ReadBE(sample->data) >> (32 - 7)) & 1);
+	Config_WriteVar_Int("bitB", (ReadBE(sample->data) >> (32 - 8)) & 1);
 	
 	Config_SPrintf("\n");
 	Config_WriteTitle_Str("Loop");
-	Config_WriteVar_Int(start, ReadBE(loop->start));
-	Config_WriteVar_Int(end, ReadBE(loop->end));
-	Config_WriteVar_Int(count, ReadBE(loop->count));
-	Config_WriteVar_Int(tail_end, ReadBE(loop->origSpls));
+	Config_WriteVar_Int("start", ReadBE(loop->start));
+	Config_WriteVar_Int("end", ReadBE(loop->end));
+	Config_WriteVar_Int("count", ReadBE(loop->count));
+	Config_WriteVar_Int("tail_end", ReadBE(loop->origSpls));
 	
-	MemFile_SaveFile(config, out);
+	MemFile_SaveFile_String(config, out);
 }
 
 static s32 Rom_Extract(MemFile* mem, RomFile rom, char* name) {
@@ -244,10 +271,12 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			Dir_Enter("instruments/");
 			
 			for (s32 j = 0; j < entry->numInst; j++) {
+				char* output = Dir_File("%d-Inst.cfg", j);
 				if (bank->instruments[j] == 0)
 					continue;
 				instrument = SegmentedToVirtual(0x1, ReadBE(bank->instruments[j]));
-				Rom_Config_Instrument(config, instrument, "instrument", Dir_File("%d-Inst.cfg", j), off);
+				Rom_Config_Instrument(config, instrument, "instrument", output, off);
+				String_Copy(sBankFiles[sBankNum++], output);
 			}
 			
 			Dir_Leave();
@@ -257,10 +286,12 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			Dir_Enter("sfx/");
 			
 			for (s32 j = 0; j < ReadBE(entry->numSfx); j++) {
+				char* output = Dir_File("%d-Sfx.cfg", j);
 				sfx = SegmentedToVirtual(0x1, ReadBE(bank->sfx));
 				if (sfx[j].sample == 0)
 					continue;
-				Rom_Config_Sfx(config, &sfx[j], "Sound Effect", Dir_File("%d-Sfx.cfg", j), off);
+				Rom_Config_Sfx(config, &sfx[j], "Sound Effect", output, off);
+				String_Copy(sBankFiles[sBankNum++], output);
 			}
 			
 			Dir_Leave();
@@ -270,6 +301,7 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			Dir_Enter("drums/");
 			
 			for (s32 j = 0; j < entry->numDrum; j++) {
+				char* output = Dir_File("%d-Drum.cfg", j);
 				u32* wow = SegmentedToVirtual(0x1, ReadBE(bank->drums));
 				
 				if (wow[j] == 0)
@@ -277,7 +309,8 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				drum = SegmentedToVirtual(0x1, ReadBE(wow[j]));
 				if (drum->sound.sample == 0)
 					continue;
-				Rom_Config_Drum(config, drum, "Drum", Dir_File("%d-Drum.cfg", j), off);
+				Rom_Config_Drum(config, drum, "Drum", output, off);
+				String_Copy(sBankFiles[sBankNum++], output);
 			}
 			
 			Dir_Leave();
@@ -313,64 +346,86 @@ static void Rom_Dump_Sequences(Rom* rom, MemFile* dataFile, MemFile* config) {
 }
 
 static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
-	Sample* smallest = sDumpTBL;
-	Sample* largest = sDumpTBL;
+	Sample* smallest = sUnsortedSampleTbl;
+	Sample* largest = sUnsortedSampleTbl;
 	RomFile rf;
 	Sample** tbl;
 	AdpcmLoop* loop;
 	AdpcmBook* book;
+	char buff[16];
+	char* name;
+	
+	printf_debug("sort");
 	
 	for (s32 i = 0; i < sDumpID; i++) {
-		if (smallest->sampleAddr > sDumpTBL[i].sampleAddr) {
-			smallest = &sDumpTBL[i];
+		if (smallest->sampleAddr > sUnsortedSampleTbl[i].sampleAddr) {
+			smallest = &sUnsortedSampleTbl[i];
 		}
-		if (largest->sampleAddr < sDumpTBL[i].sampleAddr) {
-			largest = &sDumpTBL[i];
+		if (largest->sampleAddr < sUnsortedSampleTbl[i].sampleAddr) {
+			largest = &sUnsortedSampleTbl[i];
 		}
 	}
-	sSortTBL[sSortID++] = smallest;
+	sSortedSampleTbl[sSortID++] = smallest;
+	printf_debug("sort II");
 	
 	while (1) {
 		smallest = largest;
 		
 		for (s32 i = 0; i < sDumpID; i++) {
-			if (sDumpTBL[i].sampleAddr < smallest->sampleAddr) {
-				if (sDumpTBL[i].sampleAddr > sSortTBL[sSortID - 1]->sampleAddr)
-					smallest = &sDumpTBL[i];
+			if (sUnsortedSampleTbl[i].sampleAddr < smallest->sampleAddr) {
+				if (sUnsortedSampleTbl[i].sampleAddr > sSortedSampleTbl[sSortID - 1]->sampleAddr) {
+					smallest = &sUnsortedSampleTbl[i];
+				}
 			}
 		}
-		sSortTBL[sSortID++] = smallest;
+		sSortedSampleTbl[sSortID++] = smallest;
 		if (smallest->sampleAddr == largest->sampleAddr)
 			break;
 	}
+	printf_debug("sort OK");
 	
-	tbl = sSortTBL;
+	tbl = sSortedSampleTbl;
 	
 	Dir_Enter("samples/"); {
 		for (s32 i = 0; i < sSortID; i++) {
 			printf_progress("Sample", i + 1, sSortID);
-			Dir_Enter("%d-Smpl/", i); {
+			name = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].name : gSampleInfo[i].dublicate->name;
+			
+			Dir_Enter("%s/", name); {
 				book = SegmentedToVirtual(0x0, tbl[i]->book);
 				loop = SegmentedToVirtual(0x0, tbl[i]->loop);
 				
 				rf.size = ReadBE(tbl[i]->data) & 0x00FFFFFF;
 				rf.data = SegmentedToVirtual(0x0, tbl[i]->sampleAddr);
-				Rom_Extract(dataFile, rf, Dir_File("Sample.bin"));
+				Rom_Extract(dataFile, rf, Dir_File("vadpcm.bin"));
 				
-				rf.size = 8 * ReadBE(book->order) * ReadBE(book->npredictors) + 8;
+				rf.size = sizeof(s16) * 8 * ReadBE(book->order) * ReadBE(book->npredictors) + 8;
 				rf.data = book;
-				Rom_Extract(dataFile, rf, Dir_File("Book.bin"));
+				Rom_Extract(dataFile, rf, Dir_File("book.bin"));
 				
-				Rom_Config_Sample(config, tbl[i], "Sample", Dir_File("config.cfg"));
+				Rom_Config_Sample(config, tbl[i], name, Dir_File("config.cfg"));
 				
 				if (loop->count) {
 					rf.size = 0x20;
 					rf.data = loop;
-					Rom_Extract(dataFile, rf, Dir_File("LoopBook.bin"));
+					Rom_Extract(dataFile, rf, Dir_File("loopbook.bin"));
 				}
 			} Dir_Leave();
 		}
 	} Dir_Leave();
+	
+	for (s32 j = 0; j < sBankNum; j++) {
+		printf_progress("Rename SoundFont samples", j + 1, sBankNum);
+		
+		MemFile_Clear(config);
+		MemFile_LoadFile_String(config, sBankFiles[j]);
+		for (s32 i = 0; i < sSortID; i++) {
+			name = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].name : gSampleInfo[i].dublicate->name;
+			sprintf(buff, "0x%X", sSortedSampleTbl[i]->sampleAddr);
+			config->dataSize += String_Replace(config->data, buff, name);
+		}
+		MemFile_SaveFile_String(config, sBankFiles[j]);
+	}
 }
 
 Rom* Rom_New(char* romName) {
@@ -388,6 +443,7 @@ Rom* Rom_New(char* romName) {
 	rom->actorTable = SegmentedToVirtual(0x0, gActorOverlayTable);
 	rom->stateTable = SegmentedToVirtual(0x0, gGameStateOverlayTable);
 	rom->sceneTable = SegmentedToVirtual(0x0, gSceneTable);
+	rom->kaleidoTable = SegmentedToVirtual(0x0, gKaleidoTable);
 	
 	printf_debugExt_align("Load Rom", "%s", romName);
 	
@@ -411,7 +467,7 @@ void Rom_Dump(Rom* rom) {
 	
 	Dir_Enter("rom/");
 	printf_info_align("Dump Rom", PRNT_YELW "%s", rom->file.info.name);
-	
+	// #if 0
 	Dir_Enter("actor/"); {
 		for (s32 i = 0; i < ACTOR_ID_MAX; i++) {
 			rf = Dma_RomFile_Actor(rom, i);
@@ -449,11 +505,20 @@ void Rom_Dump(Rom* rom) {
 				continue;
 			
 			printf_progress("System", i + 1, GAMESTATE_ID_MAX);
-			Dir_Enter("0x%02X-%s/", i, gStateName[i]); {
+			Dir_Enter("GameState_%s/", gStateName[i]); {
 				if (Rom_Extract(&dataFile, rf, Dir_File("state.zovl")))
 					Rom_Config_GameState(&config, &rom->stateTable[i], gStateName[i], Dir_File("config.cfg"));
 			} Dir_Leave();
 		}
+		
+		printf_info("Player");
+		Dir_Enter("Player/"); {
+			rf.size = ReadBE(rom->kaleidoTable[1].vromEnd) - ReadBE(rom->kaleidoTable[1].vromStart);
+			rf.data = SegmentedToVirtual(0x0, ReadBE(rom->kaleidoTable[1].vromStart));
+			
+			Rom_Extract(&dataFile, rf, Dir_File("EnPlayer.zovl"));
+			Rom_Config_Player(&config, &rom->kaleidoTable[1], "Player", Dir_File("config.cfg"));
+		} Dir_Leave();
 	} Dir_Leave();
 	
 	Dir_Enter("scene/"); {
@@ -470,6 +535,7 @@ void Rom_Dump(Rom* rom) {
 			} Dir_Leave();
 		}
 	} Dir_Leave();
+	// #endif
 	
 	Dir_Enter("sound/"); {
 		Rom_Dump_SoundFont(rom, &dataFile, &config);

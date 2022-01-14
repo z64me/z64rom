@@ -879,8 +879,8 @@ char* gActorName[] = {
 
 char* gStateName[] = {
 	"TitleSetup",
-	"Select",
-	"Title",
+	"LevelSelect",
+	"BootTitle",
 	"Gameplay",
 	"Opening",
 	"FileChoose"

@@ -44,7 +44,7 @@ bin/linux/%.o: %.c %.h $(HEADER)
 	
 bin/linux/%.o: %.c $(HEADER)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
-	@gcc -c -o $@ $< $(CFLAGS)
+	@gcc -c -o $@ $< $(CFLAGS) -Wno-missing-braces
 
 z64rom: z64rom.c $(SOURCE_O_LINUX)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
@@ -57,7 +57,7 @@ bin/win32/%.o: %.c %.h $(HEADER)
 	
 bin/win32/%.o: %.c $(HEADER)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(CFLAGS) -D_WIN32 -Wno-missing-braces
 
 bin/icon.o: lib/icon.rc lib/icon.ico
 	@i686-w64-mingw32.static-windres -o $@ $<
