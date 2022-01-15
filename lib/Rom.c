@@ -31,8 +31,8 @@ u32 KALEIDO_ID_MAX = 2;
 
 char sBankFiles[1800][256];
 u32 sBankNum;
-Sample sUnsortedSampleTbl[1800];
-Sample* sSortedSampleTbl[1800];
+SampleInfo sUnsortedSampleTbl[1800];
+SampleInfo* sSortedSampleTbl[1800];
 u32 sDumpID;
 u32 sSortID;
 
@@ -112,6 +112,7 @@ static void Rom_Config_Scene(MemFile* config, SceneEntry* sceneEntry, char* name
 #define __Config_Sample(wow, sampletype) \
 	Config_WriteVar_Hex(# wow "_sample", ReadBE(sample->sampleAddr) + _SampleBank_SegmentRomStart + off); \
 	Config_WriteVar_Flo(# wow "_tuning", *f); \
+	sUnsortedSampleTbl[sDumpID].tuning = *f; \
 	sUnsortedSampleTbl[sDumpID].data = sample->data; \
 	sUnsortedSampleTbl[sDumpID].sampleAddr = ReadBE(sample->sampleAddr) + _SampleBank_SegmentRomStart + off; \
 	sUnsortedSampleTbl[sDumpID].loop = VirtualToSegmented(0x0, SegmentedToVirtual(0x1, ReadBE(sample->loop))); \
@@ -385,10 +386,10 @@ static void Rom_Dump_Sequences(Rom* rom, MemFile* dataFile, MemFile* config) {
 }
 
 static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
-	Sample* smallest = sUnsortedSampleTbl;
-	Sample* largest = sUnsortedSampleTbl;
+	SampleInfo* smallest = sUnsortedSampleTbl;
+	SampleInfo* largest = sUnsortedSampleTbl;
 	RomFile rf;
-	Sample** tbl;
+	SampleInfo** tbl;
 	AdpcmLoop* loop;
 	AdpcmBook* book;
 	char buff[16];
@@ -445,7 +446,7 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 				rf.data = book;
 				Rom_Extract(dataFile, rf, Dir_File("book.bin"));
 				
-				Rom_Config_Sample(config, tbl[i], name, Dir_File("config.cfg"));
+				Rom_Config_Sample(config, (Sample*)tbl[i], name, Dir_File("config.cfg"));
 				
 				if (loop->count) {
 					rf.size = 0x20;
@@ -467,11 +468,13 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 				String_Merge(sysbuf, " -o ");
 				String_Merge(sysbuf, Dir_File("Sample.wav"));
 				if (gPrintfSuppress == PSL_DEBUG)
-					String_Merge(sysbuf, " -D ");
+					String_Merge(sysbuf, " -D");
 				else
-					String_Merge(sysbuf, " -s ");
-				String_Merge(sysbuf, "-H ");
+					String_Merge(sysbuf, " -S");
+				String_Merge(sysbuf, " -s ");
 				String_Merge(sysbuf, TempPrintf("%d", sampRate));
+				String_Merge(sysbuf, " -t ");
+				String_Merge(sysbuf, TempPrintf("%f", tbl[i]->tuning));
 				
 				if (system(sysbuf)) {
 					printf_error(sysbuf);
