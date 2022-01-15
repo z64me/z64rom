@@ -407,6 +407,7 @@ void printf_error(const char* fmt, ...) {
 	if (gPrintfSuppress < PSL_NO_ERROR) {
 		va_list args;
 		
+		printf("\n");
 		va_start(args, fmt);
 		__printf_call(2);
 		vprintf(
@@ -416,6 +417,10 @@ void printf_error(const char* fmt, ...) {
 		printf("\n");
 		va_end(args);
 	}
+	
+	#ifdef _WIN32
+		getchar();
+	#endif
 	exit(EXIT_FAILURE);
 }
 
@@ -834,7 +839,8 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 			return 1;
 		}
 	} else {
-		MemFile_Realloc(memFile, tempSize);
+		if (memFile->memSize < tempSize)
+			MemFile_Realloc(memFile, tempSize * 2);
 		memFile->dataSize = tempSize;
 	}
 	

@@ -16,12 +16,12 @@ typedef struct Rom {
 	GameStateEntry* stateTable;
 } Rom;
 
-typedef struct SampleInfo {
+typedef struct N64AudioInfo {
 	u32   sampleRate;
 	u8    halfPrec;
-	struct SampleInfo* dublicate;
+	struct N64AudioInfo* dublicate;
 	char* name;
-} SampleInfo;
+} N64AudioInfo;
 
 typedef struct IndexInfo {
 	u32  romAddress;
@@ -50,6 +50,6 @@ extern char* gStateName[];
 extern char* gSceneName[];
 extern char* gBankName[];
 extern char* gSequenceName[];
-extern SampleInfo gSampleInfo[];
+extern N64AudioInfo gSampleInfo[];
 
 #endif

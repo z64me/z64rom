@@ -63,3 +63,5 @@ z64rom
 prvFileList
 *.lnk
 *.wav
+*.7z
+tools/*

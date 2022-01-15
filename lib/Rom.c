@@ -393,6 +393,7 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 	AdpcmBook* book;
 	char buff[16];
 	char* name;
+	char sysbuf[256 * 2];
 	
 	printf_debug("sort");
 	
@@ -428,6 +429,8 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 	Dir_Enter("samples/"); {
 		for (s32 i = 0; i < sSortID; i++) {
 			printf_progress("Sample", i + 1, sSortID);
+			if (gPrintfSuppress == PSL_DEBUG)
+				printf("\n");
 			name = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].name : gSampleInfo[i].dublicate->name;
 			
 			Dir_Enter("%s/", name); {
@@ -448,6 +451,30 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 					rf.size = 0x20;
 					rf.data = loop;
 					Rom_Extract(dataFile, rf, Dir_File("loopbook.bin"));
+				}
+				
+				u32 sampRate = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].sampleRate : gSampleInfo[i].dublicate->sampleRate;;
+				
+				if (!sampRate)
+					sampRate = 22050;
+				
+				#ifndef _WIN32
+					String_Copy(sysbuf, "./tools/z64audio -i ");
+				#else
+					String_Copy(sysbuf, "tools\\z64audio.exe -i ");
+				#endif
+				String_Merge(sysbuf, Dir_File("vadpcm.bin"));
+				String_Merge(sysbuf, " -o ");
+				String_Merge(sysbuf, Dir_File("Sample.wav"));
+				if (gPrintfSuppress == PSL_DEBUG)
+					String_Merge(sysbuf, " -D ");
+				else
+					String_Merge(sysbuf, " -s ");
+				String_Merge(sysbuf, "-H ");
+				String_Merge(sysbuf, TempPrintf("%d", sampRate));
+				
+				if (system(sysbuf)) {
+					printf_error(sysbuf);
 				}
 			} Dir_Leave();
 		}

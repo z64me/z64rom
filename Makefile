@@ -1,5 +1,5 @@
 CFLAGS         := -Os -s -flto -Wall -I./
-SOURCE_C       := $(shell find lib/* -maxdepth 0 -type f -name '*.c')
+SOURCE_C       := $(shell find lib/* -type f -name '*.c')
 SOURCE_O_WIN32 := $(foreach f,$(SOURCE_C:.c=.o),bin/win32/$f)
 SOURCE_O_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/$f)
 

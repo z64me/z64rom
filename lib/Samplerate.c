@@ -1,6 +1,6 @@
 #include "z64rom.h"
 
-SampleInfo gSampleInfo[] = {
+N64AudioInfo gSampleInfo[] = {
 	/* 000 */ 0, 0, NULL, "Sample_0",
 	/* 001 */ 0, 0, NULL, "Sample_1",
 	/* 002 */ 0, 0, NULL, "Sample_2",
@@ -258,7 +258,7 @@ SampleInfo gSampleInfo[] = {
 	/* 254 */ 0, 0, NULL, "Sample_254",
 	/* 255 */ 0, 0, NULL, "Sample_255",
 	/* 256 */ 16000, 3, NULL, "Flamethrower",
-	/* 257 */ 16000, 3, NULL, "Stick_Clang_(Moblin)",
+	/* 257 */ 16000, 3, NULL, "Stick_Clang_Moblin",
 	/* 258 */ 16000, 3, NULL, "Ganondorf_LightningCharge",
 	/* 259 */ 16000, 3, NULL, "Swoosh",
 	/* 260 */ 16000, 0, NULL, "Pot_Shatter",
