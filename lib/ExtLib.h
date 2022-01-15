@@ -124,6 +124,11 @@ typedef struct MemFile {
 	} info;
 } MemFile;
 
+typedef struct ItemList {
+	char** item;
+	u32    num;
+} ItemList;
+
 typedef enum {
 	DIR__MAKE_ON_ENTER = (1) << 0,
 } DirParam;
@@ -141,8 +146,13 @@ void Dir_Make(char* dir, ...);
 void Dir_MakeCurrent(void);
 char* Dir_Current(void);
 char* Dir_File(char* fmt, ...);
+void Dir_ItemList(ItemList* itemList, bool isPath);
 void MakeDir(char* dir, ...);
+char* CurWorkDir(void);
 
+void ItemList_Free(ItemList* itemList);
+
+char* TempPrintf(char* fmt, ...);
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);
 void printf_SetPrefix(char* fmt);
 void printf_SetPrintfTypes(const char* d, const char* w, const char* e, const char* i);
@@ -329,6 +339,11 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define CLAMP_MIN(val, min)  ((val) < (min) ? (min) : (val))
 #define CLAMP_MAX(val, max)  ((val) > (max) ? (max) : (val))
 #define ArrayCount(arr)      (u32)(sizeof(arr) / sizeof(arr[0]))
+
+#define BinToMb(x) ((f32)(x) / (f32)0x100000)
+#define BinToKb(x) ((f32)(x) / (f32)0x400)
+#define MbToBin(x) (0x100000 * (x))
+#define KbToBin(x) (0x400 * (x))
 
 #define String_Copy(dst, src)   strcpy(dst, src)
 #define String_Merge(dst, src)  strcat(dst, src)

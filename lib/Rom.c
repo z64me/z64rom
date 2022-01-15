@@ -36,6 +36,18 @@ Sample* sSortedSampleTbl[1800];
 u32 sDumpID;
 u32 sSortID;
 
+static s32 Rom_Extract(MemFile* mem, RomFile rom, char* name) {
+	if (rom.size == 0)
+		return 0;
+	MemFile_Clear(mem);
+	mem->dataSize = rom.size;
+	MemFile_Realloc(mem, rom.size);
+	MemFile_Write(mem, rom.data, rom.size);
+	MemFile_SaveFile(mem, name);
+	
+	return 1;
+}
+
 static void Rom_Config_Actor(MemFile* config, ActorEntry* actorOvl, char* name, char* out) {
 	MemFile_Clear(config);
 	Config_WriteTitle_Str(name);
@@ -233,18 +245,6 @@ static void Rom_Config_Sample(MemFile* config, Sample* sample, char* name, char*
 	MemFile_SaveFile_String(config, out);
 }
 
-static s32 Rom_Extract(MemFile* mem, RomFile rom, char* name) {
-	if (rom.size == 0)
-		return 0;
-	MemFile_Clear(mem);
-	mem->dataSize = rom.size;
-	MemFile_Realloc(mem, rom.size);
-	MemFile_Write(mem, rom.data, rom.size);
-	MemFile_SaveFile(mem, name);
-	
-	return 1;
-}
-
 static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	AudioEntryHead* head = SegmentedToVirtual(0, gSoundFontTable);
 	AudioEntryHead* sampHead = SegmentedToVirtual(0, gSampleBankTable);
@@ -256,11 +256,24 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	Drum* drum;
 	u32 off = 0;
 	
+	printf_debugExt_align("Entry Num", "%d", num);
+	
 	Dir_Enter("soundfont/");
 	for (s32 i = 0; i < num; i++) {
 		printf_progress("SoundFont", i + 1, num);
+		if (gPrintfSuppress == PSL_DEBUG) {
+			printf("\n");
+		}
 		
 		entry = &head->entries[i];
+		
+		#ifndef NDEBUG
+			printf_debug_align("numInst", "%d", ReadBE(entry->numInst));
+			printf_debug_align("numSfx", "%d", ReadBE(entry->numSfx));
+			printf_debug_align("numDrum", "%d", ReadBE(entry->numDrum));
+			printf_debug_align("bank", "%08X", ReadBE(entry->romAddr) + _SoundFont_SegmentRomStart);
+		#endif
+		
 		bank = SegmentedToVirtual(0x0, ReadBE(entry->romAddr) + _SoundFont_SegmentRomStart);
 		off = ReadBE(sampHead->entries[entry->audioTable1].romAddr);
 		SetSegment(0x1, bank);
@@ -269,6 +282,10 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		
 		if (entry->numInst) {
 			Dir_Enter("instruments/");
+			
+			#ifndef NDEBUG
+				printf_debug_align("dump", "instruments");
+			#endif
 			
 			for (s32 j = 0; j < entry->numInst; j++) {
 				char* output = Dir_File("%d-Inst.cfg", j);
@@ -285,6 +302,10 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		if (entry->numSfx) {
 			Dir_Enter("sfx/");
 			
+			#ifndef NDEBUG
+				printf_debug_align("dump", "sfx");
+			#endif
+			
 			for (s32 j = 0; j < ReadBE(entry->numSfx); j++) {
 				char* output = Dir_File("%d-Sfx.cfg", j);
 				sfx = SegmentedToVirtual(0x1, ReadBE(bank->sfx));
@@ -299,6 +320,10 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		
 		if (entry->numDrum) {
 			Dir_Enter("drums/");
+			
+			#ifndef NDEBUG
+				printf_debug_align("dump", "drums");
+			#endif
 			
 			for (s32 j = 0; j < entry->numDrum; j++) {
 				char* output = Dir_File("%d-Drum.cfg", j);
@@ -323,14 +348,18 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 }
 
 static void Rom_Dump_Sequences(Rom* rom, MemFile* dataFile, MemFile* config) {
-	AudioEntryHead* head = SegmentedToVirtual(0, gSequenceTable);
+	AudioEntryHead* head = SegmentedToVirtual(0x0, gSequenceTable);
+	u16* seqFontTable;
 	SoundFontEntry* entry;
 	RomFile romFile;
 	u32 num = ReadBE(head->numEntries);
 	
 	Dir_Enter("sequences/");
+	SetSegment(0x1, SegmentedToVirtual(0x0, gSequenceFontTable));
 	
+	MemFile_Clear(config);
 	for (s32 i = 0; i < num; i++) {
+		seqFontTable = SegmentedToVirtual(0x0, gSequenceFontTable);
 		entry = &head->entries[i];
 		romFile.data = SegmentedToVirtual(0x0, ReadBE(entry->romAddr) + _Sequence_SegmentRomStart);
 		romFile.size = ReadBE(entry->size);
@@ -340,7 +369,17 @@ static void Rom_Dump_Sequences(Rom* rom, MemFile* dataFile, MemFile* config) {
 		
 		printf_progress("Sequence", i + 1, num);
 		Rom_Extract(dataFile, romFile, Dir_File("0x%02X-%s.seq", i, gSequenceName[i]));
+		
+		seqFontTable = SegmentedToVirtual(0x1, ReadBE(seqFontTable[i]));
+		
+		Config_WriteTitle_Str(gSequenceName[i]);
+		Config_WriteVar_Hex("sequence_id", i);
+		Config_WriteVar_Hex("bank_id", ReadBE(seqFontTable[0]) & 0xFF);
+		Config_SPrintf("\n");
 	}
+	MemFile_SaveFile_String(config, Dir_File("config.cfg"));
+	
+	SetSegment(0x1, NULL);
 	
 	Dir_Leave();
 }
@@ -415,46 +454,19 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 	} Dir_Leave();
 	
 	for (s32 j = 0; j < sBankNum; j++) {
-		printf_progress("Rename SoundFont samples", j + 1, sBankNum);
+		printf_progress("SoundFont Update", j + 1, sBankNum);
 		
 		MemFile_Clear(config);
 		MemFile_LoadFile_String(config, sBankFiles[j]);
 		for (s32 i = 0; i < sSortID; i++) {
 			name = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].name : gSampleInfo[i].dublicate->name;
 			sprintf(buff, "0x%X", sSortedSampleTbl[i]->sampleAddr);
-			config->dataSize += String_Replace(config->data, buff, name);
+			String_Replace(config->data, buff, name);
 		}
+		
+		config->dataSize = strlen(config->data);
 		MemFile_SaveFile_String(config, sBankFiles[j]);
 	}
-}
-
-Rom* Rom_New(char* romName) {
-	Rom* rom = Lib_Calloc(0, sizeof(struct Rom));
-	
-	Assert(rom != NULL);
-	
-	if (MemFile_LoadFile(&rom->file, romName)) {
-		printf_error_align("Load Rom", "%s", romName);
-	}
-	
-	SetSegment(0x0, rom->file.data);
-	rom->dmaTable = SegmentedToVirtual(0x0, gDmaDataTable);
-	rom->objectTable = SegmentedToVirtual(0x0, gObjectTable);
-	rom->actorTable = SegmentedToVirtual(0x0, gActorOverlayTable);
-	rom->stateTable = SegmentedToVirtual(0x0, gGameStateOverlayTable);
-	rom->sceneTable = SegmentedToVirtual(0x0, gSceneTable);
-	rom->kaleidoTable = SegmentedToVirtual(0x0, gKaleidoTable);
-	
-	printf_debugExt_align("Load Rom", "%s", romName);
-	
-	return rom;
-}
-
-Rom* Rom_Free(Rom* rom) {
-	MemFile_Free(&rom->file);
-	memset(rom, 0, sizeof(struct Rom));
-	
-	return NULL;
 }
 
 void Rom_Dump(Rom* rom) {
@@ -465,8 +477,8 @@ void Rom_Dump(Rom* rom) {
 	MemFile_Malloc(&dataFile, 0x460000); // Slightly larger than audiotable
 	MemFile_Malloc(&config, 0x25000);
 	
-	Dir_Enter("rom/");
 	printf_info_align("Dump Rom", PRNT_YELW "%s", rom->file.info.name);
+	Dir_Enter("rom/");
 	// #if 0
 	Dir_Enter("actor/"); {
 		for (s32 i = 0; i < ACTOR_ID_MAX; i++) {
@@ -547,4 +559,80 @@ void Rom_Dump(Rom* rom) {
 	
 	MemFile_Free(&dataFile);
 	MemFile_Free(&config);
+}
+
+static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
+	ItemList bankList;
+	
+	Dir_ItemList(&bankList, true);
+	ItemList_Free(&bankList);
+}
+
+void Rom_Build(Rom* rom) {
+	MemFile dataFile;
+	MemFile config;
+	ItemList itemList;
+	
+	MemFile_Malloc(&dataFile, 0x460000);
+	MemFile_Malloc(&config, 0x25000);
+	
+	Dir_Enter("sound/"); {
+		Dir_Enter("soundfont"); {
+			Dir_ItemList(&itemList, true);
+			
+			for (s32 i = 0; i < itemList.num; i++) {
+				Dir_Enter(itemList.item[i]); {
+					Rom_Build_SoundFont(rom, &dataFile, &config);
+				} Dir_Leave();
+			}
+			
+			ItemList_Free(&itemList);
+		} Dir_Leave();
+	} Dir_Leave();
+}
+
+Rom* Rom_New(char* romName) {
+	Rom* rom = Lib_Calloc(0, sizeof(struct Rom));
+	
+	Assert(rom != NULL);
+	
+	if (MemFile_LoadFile(&rom->file, romName)) {
+		printf_error_align("Load Rom", "%s", romName);
+	}
+	
+	if (rom->file.dataSize < MbToBin(64)) {
+		printf_warning_align("Rom Size", "[%.2fMb / %.2fMb]", BinToMb(rom->file.dataSize), 64.0f);
+		printf_warning("Bad things " PRNT_REDD "might " PRNT_RSET "happen...");
+	}
+	
+	SetSegment(0x0, rom->file.data);
+	rom->dmaTable = SegmentedToVirtual(0x0, gDmaDataTable);
+	rom->objectTable = SegmentedToVirtual(0x0, gObjectTable);
+	rom->actorTable = SegmentedToVirtual(0x0, gActorOverlayTable);
+	rom->stateTable = SegmentedToVirtual(0x0, gGameStateOverlayTable);
+	rom->sceneTable = SegmentedToVirtual(0x0, gSceneTable);
+	rom->kaleidoTable = SegmentedToVirtual(0x0, gKaleidoTable);
+	
+	#if 0
+		{
+			u16* getVal;
+			getVal = SegmentedToVirtual(0x0, 0xB5A4AC);
+			_Sequence_SegmentRomStart = ReadBE(getVal[1]) << 16 | ReadBE(getVal[3]);
+			getVal = SegmentedToVirtual(0x0, 0xB5A4C0);
+			_SoundFont_SegmentRomStart = ReadBE(getVal[1]) << 16 | ReadBE(getVal[3]);
+			if ( (ReadBE(getVal[1]) & 0xFF00) == 0x2400)
+				_SoundFont_SegmentRomStart -= 0x10000;
+			getVal = SegmentedToVirtual(0x0, 0xB5A4D4);
+			_SampleBank_SegmentRomStart = ReadBE(getVal[1]) << 16 | ReadBE(getVal[3]);
+		}
+	#endif
+	
+	return rom;
+}
+
+Rom* Rom_Free(Rom* rom) {
+	MemFile_Free(&rom->file);
+	memset(rom, 0, sizeof(struct Rom));
+	
+	return NULL;
 }

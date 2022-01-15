@@ -2,6 +2,8 @@
 #include "ExtLib.h"
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <dirent.h>
+#include <unistd.h>
 
 #ifdef __COMFLAG__
     #ifdef _WIN32
@@ -31,8 +33,11 @@ char* sPrintfPreType[][4] = {
 		"info"
 	}
 };
+char** sSubPathList;
+u32 sSubPathNum;
 DirParam sDirParam;
 
+// Segment
 void SetSegment(const u8 id, void* segment) {
 	sSegment[id] = segment;
 }
@@ -48,6 +53,7 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 	return (uPtr)ptr - (uPtr)sSegment[id];
 }
 
+// Dir
 void Dir_SetParam(DirParam w) {
 	sDirParam |= w;
 }
@@ -139,6 +145,64 @@ char* Dir_File(char* fmt, ...) {
 	return buffer;
 }
 
+static bool __isDir(char* path) {
+	struct stat st = { 0 };
+	
+	stat(path, &st);
+	
+	if (S_ISDIR(st.st_mode)) {
+		return true;
+	}
+	
+	return false;
+}
+
+void Dir_ItemList(ItemList* itemList, bool isPath) {
+	DIR* dir = opendir(sCurrentPath);
+	struct dirent* entry;
+	
+	*itemList = (ItemList) { 0 };
+	
+	if (dir == NULL)
+		printf_error_align("Could not opendir()", "%s", sCurrentPath);
+	
+	while ((entry = readdir(dir)) != NULL) {
+		if (isPath) {
+			if (__isDir(Dir_File(entry->d_name))) {
+				if (entry->d_name[0] == '.')
+					continue;
+				itemList->num++;
+			}
+		} else {
+			if (!__isDir(Dir_File(entry->d_name))) {
+				itemList->num++;
+			}
+		}
+	}
+	
+	if (itemList->num) {
+		u32 i = 0;
+		dir = opendir(sCurrentPath);
+		itemList->item = Lib_Malloc(0, sizeof(char*) * itemList->num);
+		
+		while ((entry = readdir(dir)) != NULL) {
+			if (isPath) {
+				if (__isDir(Dir_File(entry->d_name))) {
+					if (entry->d_name[0] == '.')
+						continue;
+					itemList->item[i] = Lib_Malloc(0, strlen(entry->d_name));
+					String_Copy(itemList->item[i++], entry->d_name);
+				}
+			} else {
+				if (!__isDir(Dir_File(entry->d_name))) {
+					itemList->item[i] = Lib_Malloc(0, strlen(entry->d_name));
+					String_Copy(itemList->item[i++], entry->d_name);
+				}
+			}
+		}
+	}
+}
+
 void MakeDir(char* dir, ...) {
 	struct stat st = { 0 };
 	char buffer[256 * 4];
@@ -160,6 +224,52 @@ void MakeDir(char* dir, ...) {
 		#endif
 	}
 	va_end(args);
+}
+
+char* CurWorkDir(void) {
+	static char buf[256 * 4];
+	
+	if (getcwd(buf, sizeof(buf)) == NULL) {
+		printf_error("Could not get CurWorkDir");
+	}
+	
+	for (s32 i = 0; i < strlen(buf); i++) {
+		if (buf[i] == '\\')
+			buf[i] = '/';
+	}
+	
+	String_Merge(buf, "/");
+	
+	return buf;
+}
+
+// ItemList
+void ItemList_Free(ItemList* itemList) {
+	if (itemList->num) {
+		for (s32 i = 0; i < itemList->num; i++) {
+			if (itemList->item[i])
+				free(itemList->item[i]);
+		}
+	}
+	
+	if (itemList->item)
+		free(itemList->item);
+	
+	itemList->num = 0;
+}
+
+// printf
+
+char* TempPrintf(char* fmt, ...) {
+	static char buffer[256 * 4];
+	
+	va_list args;
+	
+	va_start(args, fmt);
+	vsprintf(buffer, fmt, args);
+	va_end(args);
+	
+	return buffer;
 }
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {
@@ -1170,7 +1280,7 @@ void String_Insert(char* point, char* insert) {
 	char* insEnd = point + insLen;
 	s32 remLen = strlen(point);
 	
-	memmove(insEnd, point, remLen);
+	memmove(insEnd, point, remLen + 1);
 	insEnd[remLen] = 0;
 	memcpy(point, insert, insLen);
 }
@@ -1192,7 +1302,7 @@ s32 String_Replace(char* src, char* word, char* replacement) {
 	while (ptr != NULL) {
 		String_Remove(ptr, strlen(word));
 		String_Insert(ptr, replacement);
-		diff += strlen(replacement) - strlen(word);
+		diff += strlen(replacement) - strlen(word) - 1;
 		ptr = String_MemMem(src, word);
 	}
 	
