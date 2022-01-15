@@ -31,7 +31,7 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	CheckTypes();
 	
-	if (argc > 1 && String_MemMem(argv[1], ".z64")) {
+	if (argc > 1 && (String_MemMemCase(argv[1], ".z64"))) {
 		printf_toolinfo(sToolName, "");
 		rom = Rom_New(argv[1]);
 		Rom_Dump(rom);

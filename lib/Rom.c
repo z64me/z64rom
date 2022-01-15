@@ -465,15 +465,15 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 					String_Copy(sysbuf, "tools\\z64audio.exe -i ");
 				#endif
 				String_Merge(sysbuf, Dir_File("vadpcm.bin"));
-				String_Merge(sysbuf, " -o ");
+				String_Merge(sysbuf, " --o ");
 				String_Merge(sysbuf, Dir_File("Sample.wav"));
 				if (gPrintfSuppress == PSL_DEBUG)
-					String_Merge(sysbuf, " -D");
+					String_Merge(sysbuf, " --D");
 				else
-					String_Merge(sysbuf, " -S");
-				String_Merge(sysbuf, " -s ");
+					String_Merge(sysbuf, " --S");
+				String_Merge(sysbuf, " --s ");
 				String_Merge(sysbuf, TempPrintf("%d", sampRate));
-				String_Merge(sysbuf, " -t ");
+				String_Merge(sysbuf, " --t ");
 				String_Merge(sysbuf, TempPrintf("%f", tbl[i]->tuning));
 				
 				if (system(sysbuf)) {

@@ -35,7 +35,7 @@ clean:
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find bin/* -type f)$(PRNT_RSET)]"
 	@rm -f $(shell find bin/* -type f)
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find z64ro* -type f -not -name '*.c*')$(PRNT_RSET)]"
-	@rm -f $(shell find z64ro -type f -not -name '*.c')
+	@rm -f $(shell find z64ro* -type f -not -name '*.c')
 
 # LINUX
 bin/linux/%.o: %.c %.h $(HEADER)
