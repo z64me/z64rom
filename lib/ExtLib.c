@@ -17,6 +17,7 @@
 PrintfSuppressLevel gPrintfSuppress = 0;
 char* sPrintfPrefix = "ExtLib";
 u8 sPrintfType = 1;
+u8 sPrintfProgressing;
 u8* sSegment[255];
 char sCurrentPath[256 * 4];
 char* sPrintfPreType[][4] = {
@@ -336,6 +337,10 @@ static void __printf_call(u32 type) {
 void printf_debug(const char* fmt, ...) {
 	if (gPrintfSuppress > PSL_DEBUG)
 		return;
+	
+	if (sPrintfProgressing)
+		printf("\n");
+	
 	va_list args;
 	
 	va_start(args, fmt);
@@ -351,6 +356,9 @@ void printf_debug(const char* fmt, ...) {
 void printf_debug_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress > PSL_DEBUG)
 		return;
+	
+	if (sPrintfProgressing)
+		printf("\n");
 	
 	va_list args;
 	
@@ -371,6 +379,10 @@ void printf_debug_align(const char* info, const char* fmt, ...) {
 void printf_warning(const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_WARNING)
 		return;
+	
+	if (sPrintfProgressing)
+		printf("\n");
+	
 	va_list args;
 	
 	va_start(args, fmt);
@@ -386,6 +398,9 @@ void printf_warning(const char* fmt, ...) {
 void printf_warning_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_WARNING)
 		return;
+	
+	if (sPrintfProgressing)
+		printf("\n");
 	
 	va_list args;
 	
@@ -405,6 +420,9 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 
 void printf_error(const char* fmt, ...) {
 	if (gPrintfSuppress < PSL_NO_ERROR) {
+		if (sPrintfProgressing)
+			printf("\n");
+		
 		va_list args;
 		
 		printf("\n");
@@ -426,6 +444,9 @@ void printf_error(const char* fmt, ...) {
 
 void printf_error_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress < PSL_NO_ERROR) {
+		if (sPrintfProgressing)
+			printf("\n");
+		
 		va_list args;
 		
 		va_start(args, fmt);
@@ -447,6 +468,10 @@ void printf_error_align(const char* info, const char* fmt, ...) {
 void printf_info(const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
+	
+	if (sPrintfProgressing)
+		printf("\n");
+	
 	va_list args;
 	
 	va_start(args, fmt);
@@ -462,6 +487,10 @@ void printf_info(const char* fmt, ...) {
 void printf_info_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
+	
+	if (sPrintfProgressing)
+		printf("\n");
+	
 	va_list args;
 	
 	va_start(args, fmt);
@@ -489,10 +518,16 @@ void printf_progress(const char* info, u32 a, u32 b) {
 		info
 	);
 	printf("[%d / %d]", a, b);
+	sPrintfProgressing = true;
 	
 	if (a == b) {
+		sPrintfProgressing = false;
 		printf("\n");
 	}
+}
+
+void printf_halt_progress_state(void) {
+	sPrintfProgressing = false;
 }
 
 void printf_WinFix() {
@@ -945,15 +980,15 @@ void MemFile_Clear(MemFile* memFile) {
 
 #define __EXT_STR_MAX 32
 // String
-u32 String_HexStrToInt(char* string) {
+u32 String_GetHexInt(char* string) {
 	return strtol(string, NULL, 16);
 }
 
-u32 String_NumStrToInt(char* string) {
+u32 String_GetInt(char* string) {
 	return strtol(string, NULL, 10);
 }
 
-f64 String_NumStrToF64(char* string) {
+f64 String_GetFloat(char* string) {
 	return strtod(string, NULL);
 }
 
@@ -1385,7 +1420,7 @@ s32 Config_GetInt(MemFile* memFile, char* intName) {
 	
 	ptr = String_MemMem(memFile->data, intName);
 	if (ptr) {
-		return String_NumStrToInt(String_GetWord(ptr, 2));
+		return String_GetInt(String_GetWord(ptr, 2));
 	}
 	
 	printf_warning("[%s] is missing integer [%s]", memFile->info.name, intName);

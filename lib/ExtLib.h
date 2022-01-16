@@ -166,6 +166,7 @@ void printf_error_align(const char* info, const char* fmt, ...);
 void printf_info(const char* fmt, ...);
 void printf_info_align(const char* info, const char* fmt, ...);
 void printf_progress(const char* info, u32 a, u32 b);
+void printf_halt_progress_state(void);
 void printf_WinFix();
 
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);
@@ -201,9 +202,9 @@ void MemFile_Clear(MemFile* memFile);
 
 #define String_MemMem(src, comp)     Lib_MemMem(src, strlen(src), comp, strlen(comp))
 #define String_MemMemCase(src, comp) Lib_MemMemCase(src, strlen(src), comp, strlen(comp))
-u32 String_HexStrToInt(char* string);
-u32 String_NumStrToInt(char* string);
-f64 String_NumStrToF64(char* string);
+u32 String_GetHexInt(char* string);
+u32 String_GetInt(char* string);
+f64 String_GetFloat(char* string);
 s32 String_GetLineCount(char* str);
 s32 String_CaseComp(char* a, char* b, u32 compSize);
 char* String_Line(char* str, s32 line);

@@ -262,9 +262,6 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	Dir_Enter("soundfont/");
 	for (s32 i = 0; i < num; i++) {
 		printf_progress("SoundFont", i + 1, num);
-		if (gPrintfSuppress == PSL_DEBUG) {
-			printf("\n");
-		}
 		
 		entry = &head->entries[i];
 		
@@ -385,6 +382,58 @@ static void Rom_Dump_Sequences(Rom* rom, MemFile* dataFile, MemFile* config) {
 	Dir_Leave();
 }
 
+static void Rom_Dump_Samples_PatchWavFiles(MemFile* dataFile, MemFile* config) {
+	#define NOTE(note, octave) (note + (12 * (octave)))
+	u8* instInfo;
+	u32* smplInfo;
+	const struct {
+		u8 basenote;
+		s8 finetune;
+		N64AudioInfo* info;
+	} info[] = {
+		{ NOTE(0, 3), 0, &gSampleInfo[367] }, // LowPerc
+		{ NOTE(1, 3), 0, &gSampleInfo[368] }, // Snare
+		{ NOTE(3, 3), 0, &gSampleInfo[369] }, // SoftSnare
+		{ NOTE(1, 4), 0, &gSampleInfo[370] }, // Cymbal
+		{ NOTE(0, 6), 0, &gSampleInfo[371] }, // Timpani
+		{ NOTE(5, 3), 0, &gSampleInfo[405] }, // Gong
+		{ NOTE(0, 6), 0, &gSampleInfo[406] }, // WindChimes
+		
+		{ NOTE(0, 5), 0, &gSampleInfo[413] }, // CongaOpen
+		{ NOTE(0, 5), 0, &gSampleInfo[414] }, // CongaSoft
+		{ NOTE(8, 4), 0, &gSampleInfo[415] }, // CongaMute
+		
+		{ NOTE(5, 3), 0, &gSampleInfo[393] }, // LuteA
+		{ NOTE(7, 3), 0, &gSampleInfo[394] }, // LuteB
+		
+		{ NOTE(11, 3), 0, &gSampleInfo[378] }, // Tambourine
+		{ NOTE(0, 4), 0, &gSampleInfo[120] }, // Tambourine
+		{ NOTE(2, 4), 0, &gSampleInfo[121] }, // Tambourine
+		
+		{ NOTE(0, 3), 0, &gSampleInfo[432] }, // Cajon
+		{ NOTE(2, 3), 0, &gSampleInfo[433] }, // Cajon
+	};
+	
+	Dir_Enter("samples/"); {
+		for (s32 i = 0; i < ArrayCount(info); i++) {
+			printf_progress("Pathching Samples", i + 1, ArrayCount(info));
+			char* file = Dir_File("%s/Sample.wav", info[i].info->name);
+			
+			MemFile_Clear(dataFile);
+			MemFile_LoadFile(dataFile, file);
+			instInfo = Lib_MemMem(dataFile->data, dataFile->dataSize, "inst", 4);
+			smplInfo = Lib_MemMem(dataFile->data, dataFile->dataSize, "smpl", 4);
+			
+			/* basenote */ instInfo[8] = info[i].basenote;
+			/* finetune */ instInfo[9] = info[i].finetune;
+			/* basenote */ smplInfo[5] = info[i].basenote;
+			/* finetune */ smplInfo[6] = info[i].finetune;
+			MemFile_SaveFile(dataFile, file);
+		}
+	} Dir_Leave();
+	#undef NOTE
+}
+
 static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 	SampleInfo* smallest = sUnsortedSampleTbl;
 	SampleInfo* largest = sUnsortedSampleTbl;
@@ -392,11 +441,13 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 	SampleInfo** tbl;
 	AdpcmLoop* loop;
 	AdpcmBook* book;
+	MemFile wav = MemFile_Initialize();
 	char buff[16];
 	char* name;
+	u32 sampRate;
 	char sysbuf[256 * 2];
 	
-	printf_debug("sort");
+	printf_debug("sort I");
 	
 	for (s32 i = 0; i < sDumpID; i++) {
 		if (smallest->sampleAddr > sUnsortedSampleTbl[i].sampleAddr) {
@@ -430,9 +481,14 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 	Dir_Enter("samples/"); {
 		for (s32 i = 0; i < sSortID; i++) {
 			printf_progress("Sample", i + 1, sSortID);
-			if (gPrintfSuppress == PSL_DEBUG)
-				printf("\n");
 			name = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].name : gSampleInfo[i].dublicate->name;
+			sampRate = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].sampleRate : gSampleInfo[i].dublicate->sampleRate;
+			
+			if (name == NULL)
+				printf_error("Sample ID [%D] is missing name", i);
+			
+			if (sampRate == 0)
+				printf_error("Sample [%s] is missing samplerate", name);
 			
 			Dir_Enter("%s/", name); {
 				book = SegmentedToVirtual(0x0, tbl[i]->book);
@@ -453,11 +509,6 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 					rf.data = loop;
 					Rom_Extract(dataFile, rf, Dir_File("loopbook.bin"));
 				}
-				
-				u32 sampRate = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].sampleRate : gSampleInfo[i].dublicate->sampleRate;;
-				
-				if (!sampRate)
-					sampRate = 22050;
 				
 				#ifndef _WIN32
 					String_Copy(sysbuf, "./tools/z64audio -i ");
@@ -484,6 +535,8 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 	} Dir_Leave();
 	
 	for (s32 j = 0; j < sBankNum; j++) {
+		char* replacedName = NULL;
+		bool isDrum = 0;
 		printf_progress("SoundFont Update", j + 1, sBankNum);
 		
 		MemFile_Clear(config);
@@ -491,12 +544,70 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 		for (s32 i = 0; i < sSortID; i++) {
 			name = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].name : gSampleInfo[i].dublicate->name;
 			sprintf(buff, "0x%X", sSortedSampleTbl[i]->sampleAddr);
-			String_Replace(config->data, buff, name);
+			if (String_Replace(config->data, buff, name)) {
+				replacedName = name;
+			}
 		}
 		
 		config->dataSize = strlen(config->data);
 		MemFile_SaveFile_String(config, sBankFiles[j]);
+		
+		// Rename SFX To their samples
+		if (String_MemMem(sBankFiles[j], "-Sfx")) {
+			char* tempName = TempPrintf("%s%d-%s.cfg", String_GetPath(sBankFiles[j]), String_GetInt(String_GetBasename(sBankFiles[j])), replacedName);
+			printf_debug_align(
+				"Rename",
+				"[%s] -> [%s]",
+				sBankFiles[j],
+				tempName
+			);
+			if (rename(sBankFiles[j], tempName)) {
+				printf_error_align(
+					"Rename failed",
+					"[%s] -> [%s]",
+					String_GetFilename(sBankFiles[j]),
+					String_GetFilename(tempName)
+				);
+			}
+		}
+		
+		// Rename Inst to their primary sample
+		if ((String_MemMem(sBankFiles[j], "-Inst") || String_MemMem(sBankFiles[j], "-Drum")) && (String_MemMem(config->data, "Inst_") || String_MemMem(config->data, "Perc_"))) {
+			char instName[256];
+			char* tempName;
+			
+			String_Copy(instName, Config_GetString(config, "prim_sample"));
+			String_Remove(instName, strlen("Inst_"));
+			String_Replace(instName, "_Prim", "");
+			String_Replace(instName, "Soft", "");
+			String_Replace(instName, "Hard", "");
+			String_Replace(instName, "Mute", "");
+			String_Replace(instName, "Open", "");
+			String_Replace(instName, "_Hi", "Var");
+			
+			if (instName[0] == '\0')
+				printf_error("String maniplation failed for instrument");
+			
+			tempName = TempPrintf("%s%d-%s.cfg", String_GetPath(sBankFiles[j]), String_GetInt(String_GetBasename(sBankFiles[j])), instName);
+			
+			printf_debug_align(
+				"Rename",
+				"[%s] -> [%s]",
+				sBankFiles[j],
+				tempName
+			);
+			if (rename(sBankFiles[j], tempName)) {
+				printf_error_align(
+					"Rename failed",
+					"[%s] -> [%s]",
+					String_GetFilename(sBankFiles[j]),
+					String_GetFilename(tempName)
+				);
+			}
+		}
 	}
+	
+	Rom_Dump_Samples_PatchWavFiles(dataFile, config);
 }
 
 void Rom_Dump(Rom* rom) {

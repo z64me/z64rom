@@ -26,7 +26,7 @@ s32 Main(s32 argc, char* argv[]) {
 	printf_WinFix();
 	printf_SetPrefix("");
 	Dir_SetParam(DIR__MAKE_ON_ENTER);
-	if (ParArg("-d"))
+	if (ParArg("-D"))
 		printf_SetSuppressLevel(PSL_DEBUG);
 	
 	CheckTypes();
