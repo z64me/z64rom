@@ -24,18 +24,36 @@ $(shell mkdir -p bin/ $(foreach dir, \
 .PHONY: clean default win32 linux
 
 default: linux
-all: linux win32
-linux: $(SOURCE_O_LINUX) z64rom
-win32: $(SOURCE_O_WIN32) bin/icon.o z64rom.exe
-	
-linux-release: linux release/z64rom-linux32
-	@mkdir -p release/
-	@cp z64rom release/z64rom-linux32
+copyz64audio: tools/z64audio.exe tools/z64audio
+all: copyz64audio linux-release win32-release
+linux: copyz64audio $(SOURCE_O_LINUX) z64rom
+win32: copyz64audio $(SOURCE_O_WIN32) bin/icon.o z64rom.exe
 
-win32-release: win32 release/z64rom-win32.exe
-	@mkdir -p release/
-	@cp z64rom.exe release/z64rom-win32.exe
-	@upx -9 --lzma release/z64rom-win32.exe
+tools/z64audio.exe: ../z64audio/z64audio.exe
+	@echo 'Update $<'
+	@cp $< $@
+
+tools/z64audio: ../z64audio/z64audio
+	@echo 'Update $<'
+	@cp $< $@
+
+linux-release: linux
+	@rm -f z64rom-linux.7z
+	@mkdir -p bin/release-linux/
+	@cp z64rom bin/release-linux/z64rom
+	@cp -r tools/ bin/release-linux/
+	@rm -f bin/release-linux/tools/z64audio.exe
+	@upx -9 --lzma bin/release-linux/z64rom
+	@7z a z64rom-linux.7z ./bin/release-linux/*
+
+win32-release: win32
+	@rm -f z64rom-win32.7z
+	@mkdir -p bin/release-win32/
+	@cp z64rom.exe bin/release-win32/z64rom.exe
+	@cp -r tools/ bin/release-win32/
+	@rm -f bin/release-win32/tools/z64audio
+	@upx -9 --lzma bin/release-win32/z64rom.exe
+	@7z a z64rom-win32.7z ./bin/release-win32/*
 	
 
 clear:
@@ -46,6 +64,7 @@ clean:
 	@rm -f $(shell find bin/* -type f)
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find z64ro* -type f -not -name '*.c*')$(PRNT_RSET)]"
 	@rm -f $(shell find z64ro* -type f -not -name '*.c')
+	@rm -f -R bin/*
 
 # LINUX
 bin/linux/%.o: %.c %.h $(HEADER)

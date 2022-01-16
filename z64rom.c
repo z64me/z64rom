@@ -5,15 +5,7 @@ char* sToolName = "z64rom 0.1 alpha";
 void CheckTypes();
 
 char* messages[] = {
-	#ifndef _WIN32
-		"Feed me [.z64] rom please! 🙏\n\n",
-		"I demand [.z64], now! 👺\n\n",
-		"Either you give me [.z64] or you owe me 🍕\n\n",
-	#else
-		"Feed me [.z64] rom please!\n\n",
-		"I demand [.z64], now!\n\n",
-		"Either you give me [.z64] or you owe me pizza.\n\n",
-	#endif
+	"Run [" PRNT_YELW "z64rom *.z64" PRNT_RSET "] or drag'n'drop a [" PRNT_YELW "*.z64" PRNT_RSET "] rom\n",
 };
 
 s32 Main(s32 argc, char* argv[]) {
@@ -22,7 +14,6 @@ s32 Main(s32 argc, char* argv[]) {
 	time_t tm;
 	
 	time(&tm);
-	
 	printf_WinFix();
 	printf_SetPrefix("");
 	Dir_SetParam(DIR__MAKE_ON_ENTER);

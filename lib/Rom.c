@@ -241,9 +241,9 @@ static void Rom_Config_Sample(MemFile* config, Sample* sample, char* name, char*
 	
 	Config_SPrintf("\n");
 	Config_WriteTitle_Str("Loop");
-	Config_WriteVar_Int("start", ReadBE(loop->start));
-	Config_WriteVar_Int("end", ReadBE(loop->end));
-	Config_WriteVar_Int("count", ReadBE(loop->count));
+	Config_WriteVar_Int("loop_start", ReadBE(loop->start));
+	Config_WriteVar_Int("loop_end", ReadBE(loop->end));
+	Config_WriteVar_Int("loop_count", ReadBE(loop->count));
 	Config_WriteVar_Int("tail_end", ReadBE(loop->origSpls));
 	
 	MemFile_SaveFile_String(config, out);
@@ -635,7 +635,7 @@ void Rom_Dump(Rom* rom) {
 	
 	printf_info_align("Dump Rom", PRNT_YELW "%s", rom->file.info.name);
 	Dir_Enter("rom/");
-	#if 0
+	#if 1
 		Dir_Enter("actor/"); {
 			for (s32 i = 0; i < ACTOR_ID_MAX; i++) {
 				rf = Dma_RomFile_Actor(rom, i);
