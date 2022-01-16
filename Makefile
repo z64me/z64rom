@@ -27,6 +27,16 @@ default: linux
 all: linux win32
 linux: $(SOURCE_O_LINUX) z64rom
 win32: $(SOURCE_O_WIN32) bin/icon.o z64rom.exe
+	
+linux-release: linux release/z64rom-linux32
+	@mkdir -p release/
+	@cp z64rom release/z64rom-linux32
+
+win32-release: win32 release/z64rom-win32.exe
+	@mkdir -p release/
+	@cp z64rom.exe release/z64rom-win32.exe
+	@upx -9 --lzma release/z64rom-win32.exe
+	
 
 clear:
 	@rm -f -R rom/*
