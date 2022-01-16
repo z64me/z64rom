@@ -19,7 +19,7 @@ typedef struct Rom {
 typedef struct N64AudioInfo {
 	u32   sampleRate;
 	u8    halfPrec;
-	struct N64AudioInfo* dublicate;
+	const struct N64AudioInfo* dublicate;
 	char* name;
 } N64AudioInfo;
 
@@ -45,6 +45,9 @@ typedef struct  {
 	void32 loop; // AdpcmLoop*
 	void32 book; // AdpcmBook*
 	f32    tuning;
+	u8 isPrim;
+	u8 splitLo;
+	u8 splitHi;
 } SampleInfo;
 
 extern u32 gDmaDataTable;
@@ -69,6 +72,6 @@ extern char* gStateName[];
 extern char* gSceneName[];
 extern char* gBankName[];
 extern char* gSequenceName[];
-extern N64AudioInfo gSampleInfo[];
+extern const N64AudioInfo gSampleInfo[];
 
 #endif

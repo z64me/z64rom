@@ -134,6 +134,7 @@ struct Rom;
 #define Dma_RomFile_Proto(name) \
 	Dma_RomFile_ ## name(struct Rom* rom, s32 id)
 
+RomFile Rom_GetRomFile(struct Rom* rom, u32 vromA, u32 vromB);
 RomFile Dma_RomFile_Proto(Object);
 RomFile Dma_RomFile_Proto(Actor);
 RomFile Dma_RomFile_Proto(DmaEntry);

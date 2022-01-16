@@ -17,7 +17,7 @@
 PrintfSuppressLevel gPrintfSuppress = 0;
 char* sPrintfPrefix = "ExtLib";
 u8 sPrintfType = 1;
-u8 sPrintfProgressing;
+u8 gPrintfProgressing;
 u8* sSegment[255];
 char sCurrentPath[256 * 4];
 char* sPrintfPreType[][4] = {
@@ -338,8 +338,10 @@ void printf_debug(const char* fmt, ...) {
 	if (gPrintfSuppress > PSL_DEBUG)
 		return;
 	
-	if (sPrintfProgressing)
+	if (gPrintfProgressing) {
 		printf("\n");
+		gPrintfProgressing = false;
+	}
 	
 	va_list args;
 	
@@ -357,8 +359,10 @@ void printf_debug_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress > PSL_DEBUG)
 		return;
 	
-	if (sPrintfProgressing)
+	if (gPrintfProgressing) {
 		printf("\n");
+		gPrintfProgressing = false;
+	}
 	
 	va_list args;
 	
@@ -380,8 +384,10 @@ void printf_warning(const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_WARNING)
 		return;
 	
-	if (sPrintfProgressing)
+	if (gPrintfProgressing) {
 		printf("\n");
+		gPrintfProgressing = false;
+	}
 	
 	va_list args;
 	
@@ -399,8 +405,10 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_WARNING)
 		return;
 	
-	if (sPrintfProgressing)
+	if (gPrintfProgressing) {
 		printf("\n");
+		gPrintfProgressing = false;
+	}
 	
 	va_list args;
 	
@@ -420,8 +428,10 @@ void printf_warning_align(const char* info, const char* fmt, ...) {
 
 void printf_error(const char* fmt, ...) {
 	if (gPrintfSuppress < PSL_NO_ERROR) {
-		if (sPrintfProgressing)
+		if (gPrintfProgressing) {
 			printf("\n");
+			gPrintfProgressing = false;
+		}
 		
 		va_list args;
 		
@@ -444,8 +454,10 @@ void printf_error(const char* fmt, ...) {
 
 void printf_error_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress < PSL_NO_ERROR) {
-		if (sPrintfProgressing)
+		if (gPrintfProgressing) {
 			printf("\n");
+			gPrintfProgressing = false;
+		}
 		
 		va_list args;
 		
@@ -469,9 +481,10 @@ void printf_info(const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
 	
-	if (sPrintfProgressing)
+	if (gPrintfProgressing) {
 		printf("\n");
-	
+		gPrintfProgressing = false;
+	}
 	va_list args;
 	
 	va_start(args, fmt);
@@ -488,9 +501,10 @@ void printf_info_align(const char* info, const char* fmt, ...) {
 	if (gPrintfSuppress >= PSL_NO_INFO)
 		return;
 	
-	if (sPrintfProgressing)
+	if (gPrintfProgressing) {
 		printf("\n");
-	
+		gPrintfProgressing = false;
+	}
 	va_list args;
 	
 	va_start(args, fmt);
@@ -518,16 +532,12 @@ void printf_progress(const char* info, u32 a, u32 b) {
 		info
 	);
 	printf("[%d / %d]", a, b);
-	sPrintfProgressing = true;
+	gPrintfProgressing = true;
 	
 	if (a == b) {
-		sPrintfProgressing = false;
+		gPrintfProgressing = false;
 		printf("\n");
 	}
-}
-
-void printf_halt_progress_state(void) {
-	sPrintfProgressing = false;
 }
 
 void printf_WinFix() {
@@ -984,11 +994,11 @@ u32 String_GetHexInt(char* string) {
 	return strtol(string, NULL, 16);
 }
 
-u32 String_GetInt(char* string) {
+s32 String_GetInt(char* string) {
 	return strtol(string, NULL, 10);
 }
 
-f64 String_GetFloat(char* string) {
+f32 String_GetFloat(char* string) {
 	return strtod(string, NULL);
 }
 
@@ -1082,9 +1092,10 @@ char* String_GetWord(char* str, s32 word) {
 		}
 	}
 	
+	if (__EXT_BUFFER(0))
+		__EXT_BUFFER(0) = Lib_Free(__EXT_BUFFER(0));
 	__EXT_BUFFER(0) = Lib_Calloc(0, j * 2);
 	memcpy(__EXT_BUFFER(0), &str[i], j);
-	Lib_Free(__EXT_BUFFER(-(__EXT_STR_MAX / 2)));
 	ret = __EXT_BUFFER(0);
 	index = Wrap(index + 1, 0, __EXT_STR_MAX - 1);
 	
@@ -1243,10 +1254,11 @@ char* String_GetPath(char* src) {
 	if (slash == 0)
 		slash = -1;
 	
+	if (__EXT_BUFFER(0) != NULL)
+		__EXT_BUFFER(0) = Lib_Free(__EXT_BUFFER(0));
 	__EXT_BUFFER(0) = Lib_Calloc(0, slash + 0x10);
 	memset(__EXT_BUFFER(0), 0, slash + 2);
 	memcpy(__EXT_BUFFER(0), src, slash + 1);
-	Lib_Free(__EXT_BUFFER(-(__EXT_STR_MAX / 2)));
 	ret = __EXT_BUFFER(0);
 	index = Wrap(index + 1, 0, __EXT_STR_MAX - 1);
 	
@@ -1328,8 +1340,8 @@ s32 String_Replace(char* src, char* word, char* replacement) {
 	while (ptr != NULL) {
 		String_Remove(ptr, strlen(word));
 		String_Insert(ptr, replacement);
-		diff += strlen(replacement) - strlen(word) - 1;
 		ptr = String_MemMem(src, word);
+		diff = true;
 	}
 	
 	return diff;
@@ -1342,23 +1354,19 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 }
 
 char* String_GetSpacedArg(char* argv[], s32 cur) {
-	#define CONDITION (argv[i] != NULL && ( \
-			!(argv[i][0] == '-' && isalnum(argv[i][1]) && strlen(argv[i]) == 2) && \
-			!(argv[i][0] == '-' && argv[i][1] == '-' && isalnum(argv[i][2]) && strlen(argv[i]) == 3)) \
-	)
 	#define STRING_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
 	static char* buffer[__EXT_STR_MAX];
 	char tempBuf[1024];
 	static s32 index;
 	s32 i = cur + 1;
 	
-	if (CONDITION) {
+	if (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
 		if (STRING_BUFFER(0) != NULL)
 			free(STRING_BUFFER(0));
 		
 		String_Copy(tempBuf, argv[cur]);
 		
-		while (CONDITION) {
+		while (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
 			String_Merge(tempBuf, " ");
 			String_Merge(tempBuf, argv[i++]);
 		}
