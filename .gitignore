@@ -66,3 +66,4 @@ prvFileList
 *.7z
 tools/*
 *.exe
+release/*
