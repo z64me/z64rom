@@ -1,6 +1,6 @@
 #include "lib/z64rom.h"
 
-char* sToolName = "z64rom 0.1 alpha";
+char* sToolName = PRNT_PRPL "z64rom " PRNT_GRAY "0.1 alpha";
 
 void CheckTypes();
 
@@ -9,20 +9,20 @@ char* sToolUsage = {
 	EXT_INFO("Dump", 12, "DragNDrop [.z64] to z64rom executable")
 	PRNT_NL
 	EXT_INFO_TITLE("Args:")
-	EXT_INFO("--i", 12, "Input")
-	EXT_INFO("--D", 12, "Debug Print")
+	EXT_INFO("--i",  12, "Input")
+	EXT_INFO("--D",  12, "Debug Print")
 };
 
 s32 Main(s32 argc, char* argv[]) {
 	char* input = NULL;
-	Rom* rom;
+	Rom* rom = Lib_Calloc(0, sizeof(struct Rom));
 	u32 parArg = 0;
-	time_t tm;
 	
-	time(&tm);
-	printf_WinFix();
+	#ifdef _WIN32
+		printf_WinFix();
+	#endif
 	printf_SetPrefix("");
-	Dir_SetParam(DIR__MAKE_ON_ENTER);
+	
 	if (ParArg("--D"))
 		printf_SetSuppressLevel(PSL_DEBUG);
 	
@@ -35,9 +35,9 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	if (input) {
 		printf_toolinfo(sToolName, "");
-		rom = Rom_New(input);
+		Rom_New(rom, input);
 		Rom_Dump(rom);
-		rom = Rom_Free(rom);
+		Rom_Free(rom);
 	} else {
 		printf_toolinfo(sToolName, sToolUsage);
 	}

@@ -525,16 +525,16 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 				else
 					String_Merge(sysbuf, " --S");
 				String_Merge(sysbuf, " --srate ");
-				String_Merge(sysbuf, TempPrintf("%d", sampRate));
+				String_Merge(sysbuf, tprintf("%d", sampRate));
 				String_Merge(sysbuf, " --tuning ");
-				String_Merge(sysbuf, TempPrintf("%f", tbl[i]->tuning));
+				String_Merge(sysbuf, tprintf("%f", tbl[i]->tuning));
 				
 				if (tbl[i]->isPrim && (tbl[i]->splitHi != 127 || tbl[i]->splitLo != 0)) {
 					String_Merge(sysbuf, " --split-hi ");
-					String_Merge(sysbuf, TempPrintf("%d", tbl[i]->splitHi + 21));
+					String_Merge(sysbuf, tprintf("%d", tbl[i]->splitHi + 21));
 					if (tbl[i]->splitLo) {
 						String_Merge(sysbuf, " --split-lo ");
-						String_Merge(sysbuf, TempPrintf("%d", tbl[i]->splitLo + 21));
+						String_Merge(sysbuf, tprintf("%d", tbl[i]->splitLo + 21));
 					}
 				}
 				
@@ -583,7 +583,7 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 		
 		// Rename SFX To their samples
 		if (String_MemMem(sBankFiles[j], "-Sfx")) {
-			char* tempName = TempPrintf("%s%d-%s.cfg", String_GetPath(sBankFiles[j]), String_GetInt(String_GetBasename(sBankFiles[j])), replacedName);
+			char* tempName = tprintf("%s%d-%s.cfg", String_GetPath(sBankFiles[j]), String_GetInt(String_GetBasename(sBankFiles[j])), replacedName);
 			printf_debug_align(
 				"Rename",
 				"[%s] -> [%s]",
@@ -610,7 +610,7 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 			if (instName[0] == 0)
 				printf_error("String maniplation failed for instrument");
 			
-			tempName = TempPrintf("%s%d-%s.cfg", String_GetPath(sBankFiles[j]), String_GetInt(String_GetBasename(sBankFiles[j])), instName);
+			tempName = tprintf("%s%d-%s.cfg", String_GetPath(sBankFiles[j]), String_GetInt(String_GetBasename(sBankFiles[j])), instName);
 			
 			printf_debug_align(
 				"Rename",
@@ -630,6 +630,7 @@ void Rom_Dump(Rom* rom) {
 	MemFile config;
 	RomFile rf;
 	
+	Dir_SetParam(DIR__MAKE_ON_ENTER);
 	MemFile_Malloc(&dataFile, 0x460000); // Slightly larger than audiotable
 	MemFile_Malloc(&config, 0x25000);
 	
@@ -781,9 +782,7 @@ void Rom_Build(Rom* rom) {
 	} Dir_Leave();
 }
 
-Rom* Rom_New(char* romName) {
-	Rom* rom = Lib_Calloc(0, sizeof(struct Rom));
-	
+void Rom_New(Rom* rom, char* romName) {
 	Assert(rom != NULL);
 	
 	if (MemFile_LoadFile(&rom->file, romName)) {
@@ -816,13 +815,9 @@ Rom* Rom_New(char* romName) {
 			_SampleBank_SegmentRomStart = ReadBE(getVal[1]) << 16 | ReadBE(getVal[3]);
 		}
 	#endif
-	
-	return rom;
 }
 
-Rom* Rom_Free(Rom* rom) {
+void Rom_Free(Rom* rom) {
 	MemFile_Free(&rom->file);
 	memset(rom, 0, sizeof(struct Rom));
-	
-	return NULL;
 }

@@ -38,8 +38,8 @@ linux-release: linux
 	@cp z64rom bin/release-linux/z64rom
 	@cp -r tools/ bin/release-linux/
 	@rm -f bin/release-linux/tools/z64audio.exe
-	@upx -9 --lzma bin/release-linux/z64rom
-	@7z a z64rom-linux.7z ./bin/release-linux/*
+	@upx -9 --lzma bin/release-linux/z64rom > /dev/null
+	@7z a z64rom-linux.7z ./bin/release-linux/* > /dev/null
 
 win32-release: win32
 	@rm -f z64rom-win32.7z
@@ -47,8 +47,8 @@ win32-release: win32
 	@cp z64rom.exe bin/release-win32/z64rom.exe
 	@cp -r tools/ bin/release-win32/
 	@rm -f bin/release-win32/tools/z64audio
-	@upx -9 --lzma bin/release-win32/z64rom.exe
-	@7z a z64rom-win32.7z ./bin/release-win32/*
+	@upx -9 --lzma bin/release-win32/z64rom.exe > /dev/null
+	@7z a z64rom-win32.7z ./bin/release-win32/* > /dev/null
 	
 
 clear:

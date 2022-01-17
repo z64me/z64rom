@@ -5,8 +5,8 @@
 
 struct Rom;
 
-struct Rom* Rom_New(char* romName);
-struct Rom* Rom_Free(struct Rom* rom);
+void Rom_New(struct Rom* rom, char* romName);
+void Rom_Free(struct Rom* rom);
 void Rom_Dump(struct Rom* rom);
 
 #endif
