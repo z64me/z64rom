@@ -21,21 +21,20 @@ $(shell mkdir -p bin/ $(foreach dir, \
 	$(dir $(SOURCE_O_WIN32)) \
 	$(dir $(SOURCE_O_LINUX)), $(dir)))
 
-.PHONY: clean default win32 linux
+.PHONY: copyz64audio clean default win32 linux
 
 default: linux
-copyz64audio: tools/z64audio.exe tools/z64audio
 all: copyz64audio linux-release win32-release
 linux: copyz64audio $(SOURCE_O_LINUX) z64rom
 win32: copyz64audio $(SOURCE_O_WIN32) bin/icon.o z64rom.exe
 
-tools/z64audio.exe: ../z64audio/z64audio.exe
-	@echo 'Update $<'
-	@cp $< $@
+copyz64audio:
+	@echo 'Update z64audio.exe'
+	@cp tools/z64audio.exe ../z64audio/z64audio.exe
 
-tools/z64audio: ../z64audio/z64audio
-	@echo 'Update $<'
-	@cp $< $@
+copyz64audio:
+	@echo 'Update z64audio'
+	@cp tools/z64audio ../z64audio/z64audio
 
 linux-release: linux
 	@rm -f z64rom-linux.7z
