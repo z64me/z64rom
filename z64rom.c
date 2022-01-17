@@ -4,13 +4,19 @@ char* sToolName = "z64rom 0.1 alpha";
 
 void CheckTypes();
 
-char* messages[] = {
-	"Run [" PRNT_YELW "z64rom *.z64" PRNT_RSET "] or drag'n'drop a [" PRNT_YELW "*.z64" PRNT_RSET "] rom\n",
+char* sToolUsage = {
+	EXT_INFO_TITLE("Usage:")
+	EXT_INFO("Dump", 12, "DragNDrop [.z64] to z64rom executable")
+	PRNT_NL
+	EXT_INFO_TITLE("Args:")
+	EXT_INFO("--i", 12, "Input")
+	EXT_INFO("--D", 12, "Debug Print")
 };
 
 s32 Main(s32 argc, char* argv[]) {
+	char* input = NULL;
 	Rom* rom;
-	u32 parArg;
+	u32 parArg = 0;
 	time_t tm;
 	
 	time(&tm);
@@ -22,18 +28,25 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	CheckTypes();
 	
-	if (argc > 1 && (String_MemMemCase(argv[1], ".z64"))) {
+	if (Lib_ParseArguments(argv, "--i", &parArg))
+		input = argv[parArg];
+	if (argc == 2 && (String_MemMemCase(argv[1], ".z64")))
+		input = argv[1];
+	
+	if (input) {
 		printf_toolinfo(sToolName, "");
-		rom = Rom_New(argv[1]);
+		rom = Rom_New(input);
 		Rom_Dump(rom);
 		rom = Rom_Free(rom);
 	} else {
-		printf_toolinfo(sToolName, messages[tm % (ArrayCount(messages))]);
+		printf_toolinfo(sToolName, sToolUsage);
 	}
 	
 	#ifdef _WIN32
-		printf_info("Press enter to exit.");
-		getchar();
+		if (argc == 1) {
+			printf_info("Press enter to exit.");
+			getchar();
+		}
 	#endif
 	
 	return 0;
