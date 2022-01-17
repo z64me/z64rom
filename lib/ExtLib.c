@@ -571,6 +571,20 @@ void printf_progress(const char* info, u32 a, u32 b) {
 	}
 }
 
+s32 printf_get_answer(void) {
+	char ans = 0;
+	
+	while (ans != 'n' && ans!= 'N' && ans != 'y' && ans != 'Y') {
+		printf("\r" PRNT_GRAY "[" PRNT_DGRY "<" PRNT_GRAY "]: " PRNT_RSET);
+		if (scanf("%c", &ans)) (void)0;
+	}
+	
+	if (ans == 'N' || ans == 'n')
+		return 0;
+	
+	return 1;
+}
+
 void printf_WinFix() {
 	#ifdef _WIN32
 		system("\0");

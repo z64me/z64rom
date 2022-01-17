@@ -168,6 +168,7 @@ void printf_error_align(const char* info, const char* fmt, ...);
 void printf_info(const char* fmt, ...);
 void printf_info_align(const char* info, const char* fmt, ...);
 void printf_progress(const char* info, u32 a, u32 b);
+s32 printf_get_answer(void);
 void printf_WinFix();
 
 void* Lib_MemMem(const void* haystack, size_t haystackSize, const void* needle, size_t needleSize);

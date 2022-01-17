@@ -6,8 +6,38 @@
 #include "Dma.h"
 #include "z64audio.h"
 
+typedef struct {
+	struct {
+		u32 dmaTable;
+		u32 objTable;
+		u32 actorTable;
+		u32 stateTable;
+		u32 sceneTable;
+		u32 kaleidoTable;
+		
+		u32 seqFontTbl;
+		u32 seqTable;
+		u32 fontTable;
+		u32 sampleTable;
+	} table;
+	struct {
+		u32 seqRom;
+		u32 fontRom;
+		u32 smplRom;
+	} segment;
+	struct {
+		u16 dma;
+		u16 obj;
+		u16 actor;
+		u16 state;
+		u16 scene;
+		u16 kaleido;
+	} tblNum;
+} RomOffset;
+
 typedef struct Rom {
 	MemFile         file;
+	RomOffset       addr;
 	DmaEntry*       dmaTable;
 	ActorEntry*     actorTable;
 	SceneEntry*     sceneTable;

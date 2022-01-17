@@ -6,12 +6,12 @@ RomFile Rom_GetRomFile(Rom* rom, u32 vromA, u32 vromB) {
 	RomFile romFile;
 	u32 useAddress = false;
 	
-	for (i = 0; i < DMA_ID_MAX; i++) {
+	for (i = 0; i < rom->addr.tblNum.dma; i++) {
 		if (dmaTable[i].vromStart == vromA &&
 			dmaTable[i].vromEnd == vromB) {
 			break;
 		}
-		if (i + 1 == DMA_ID_MAX) {
+		if (i + 1 == rom->addr.tblNum.dma) {
 			printf_debugExt_align("DmaEntry", "Could not find");
 			printf_debug("%08X - %08X", ReadBE(vromA), ReadBE(vromB));
 			useAddress = true;
