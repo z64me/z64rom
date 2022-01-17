@@ -7,6 +7,11 @@
 #include "z64audio.h"
 
 typedef struct {
+	u32 hi;
+	u32 lo;
+} HiLo;
+
+typedef struct {
 	struct {
 		u32 dmaTable;
 		u32 objTable;
@@ -19,6 +24,12 @@ typedef struct {
 		u32 seqTable;
 		u32 fontTable;
 		u32 sampleTable;
+		struct {
+			HiLo init;
+			HiLo dest;
+			HiLo updt;
+			HiLo draw;
+		} player;
 	} table;
 	struct {
 		u32 seqRom;

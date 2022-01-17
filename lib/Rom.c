@@ -37,7 +37,7 @@ static void Rom_Config_GameState(MemFile* config, GameStateEntry* stateOvl, char
 	MemFile_SaveFile_String(config, out);
 }
 
-static void Rom_Config_Player(MemFile* config, KaleidoEntry* player, char* name, char* out) {
+static void Rom_Config_Player(Rom* rom, MemFile* config, KaleidoEntry* player, char* name, char* out) {
 	u16* dataHi;
 	u16* dataLo;
 	u32 init;
@@ -45,20 +45,20 @@ static void Rom_Config_Player(MemFile* config, KaleidoEntry* player, char* name,
 	u32 updt;
 	u32 draw;
 	
-	dataHi = SegmentedToVirtual(0x0, 0x00B288F8);
-	dataLo = SegmentedToVirtual(0x0, 0x00B28900);
+	dataHi = SegmentedToVirtual(0x0, rom->addr.table.player.init.hi);
+	dataLo = SegmentedToVirtual(0x0, rom->addr.table.player.init.lo);
 	init = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
 	
-	dataHi = SegmentedToVirtual(0x0, 0x00B28908);
-	dataLo = SegmentedToVirtual(0x0, 0x00B28914);
+	dataHi = SegmentedToVirtual(0x0, rom->addr.table.player.dest.hi);
+	dataLo = SegmentedToVirtual(0x0, rom->addr.table.player.dest.lo);
 	dest = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
 	
-	dataHi = SegmentedToVirtual(0x0, 0x00B2891C);
-	dataLo = SegmentedToVirtual(0x0, 0x00B28928);
+	dataHi = SegmentedToVirtual(0x0, rom->addr.table.player.updt.hi);
+	dataLo = SegmentedToVirtual(0x0, rom->addr.table.player.updt.lo);
 	updt = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
 	
-	dataHi = SegmentedToVirtual(0x0, 0x00B28930);
-	dataLo = SegmentedToVirtual(0x0, 0x00B2893C);
+	dataHi = SegmentedToVirtual(0x0, rom->addr.table.player.draw.hi);
+	dataLo = SegmentedToVirtual(0x0, rom->addr.table.player.draw.lo);
 	draw = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
 	
 	MemFile_Clear(config);
@@ -657,7 +657,7 @@ void Rom_Dump(Rom* rom) {
 				rf.data = SegmentedToVirtual(0x0, ReadBE(rom->kaleidoTable[1].vromStart));
 				
 				Rom_Extract(&dataFile, rf, Dir_File("EnPlayer.zovl"));
-				Rom_Config_Player(&config, &rom->kaleidoTable[1], "Player", Dir_File("config.cfg"));
+				Rom_Config_Player(rom, &config, &rom->kaleidoTable[1], "Player", Dir_File("config.cfg"));
 			} Dir_Leave();
 		} Dir_Leave();
 		
@@ -724,10 +724,6 @@ void Rom_Dump(Rom* rom) {
 }
 
 static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
-	ItemList bankList;
-	
-	Dir_ItemList(&bankList, true);
-	ItemList_Free(&bankList);
 }
 
 void Rom_Build(Rom* rom) {
@@ -775,6 +771,7 @@ void Rom_New(Rom* rom, char* romName) {
 	hdr = (char*)&rom->file.cast.u8[0x3B];
 	
 	if (hdr[0] == 'N' || hdr[4] == 0x0F) {
+		// Debug
 		rom->addr.table.dmaTable = 0x012F70;
 		rom->addr.table.objTable = 0xB9E6C8;
 		rom->addr.table.actorTable = 0xB8D440;
@@ -797,6 +794,19 @@ void Rom_New(Rom* rom, char* romName) {
 		rom->addr.tblNum.state = 6;
 		rom->addr.tblNum.scene = 110;
 		rom->addr.tblNum.kaleido = 2;
+		
+		rom->addr.table.player.init = (HiLo) {
+			0x00B288F8, 0x00B28900
+		};
+		rom->addr.table.player.dest = (HiLo) {
+			0x00B28908, 0x00B28914
+		};
+		rom->addr.table.player.updt = (HiLo) {
+			0x00B2891C, 0x00B28928
+		};
+		rom->addr.table.player.draw = (HiLo) {
+			0x00B28930, 0x00B2893C
+		};
 	} else {
 		rom->addr.table.dmaTable = 0x00007430;
 		rom->addr.table.objTable = 0x00B6EF58;
@@ -821,6 +831,19 @@ void Rom_New(Rom* rom, char* romName) {
 		rom->addr.tblNum.state = 6;
 		rom->addr.tblNum.scene = 101;
 		rom->addr.tblNum.kaleido = 2;
+		
+		rom->addr.table.player.init = (HiLo) {
+			0x00B0D5B8, 0x00B0D5C0
+		};
+		rom->addr.table.player.dest = (HiLo) {
+			0x00B0D5C8, 0x00B0D5D4
+		};
+		rom->addr.table.player.updt = (HiLo) {
+			0x00B0D5DC, 0x00B0D5E8
+		};
+		rom->addr.table.player.draw = (HiLo) {
+			0x00B0D5F0, 0x00B0D5FC
+		};
 	}
 	
 	SetSegment(0x0, rom->file.data);
