@@ -30,11 +30,11 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	if (Lib_ParseArguments(argv, "--i", &parArg))
 		input = argv[parArg];
-	if (argc == 2 && (String_MemMemCase(argv[1], ".z64")))
+	if (argc >= 2 && (String_MemMemCase(argv[1], ".z64")))
 		input = argv[1];
 	
 	if (input) {
-		printf_toolinfo(sToolName, "");
+		printf_toolinfo(sToolName, "\n");
 		Rom_New(rom, input);
 		Rom_Dump(rom);
 		Rom_Free(rom);

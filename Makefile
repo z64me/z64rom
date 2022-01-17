@@ -29,8 +29,8 @@ linux: copyz64audio $(SOURCE_O_LINUX) z64rom
 win32: copyz64audio $(SOURCE_O_WIN32) bin/icon.o z64rom.exe
 
 copyz64audio:
-	@cp tools/z64audio.exe ../z64audio/z64audio.exe
-	@cp tools/z64audio ../z64audio/z64audio
+	@cp ../z64audio/z64audio.exe tools/z64audio.exe
+	@cp ../z64audio/z64audio tools/z64audio
 
 linux-release: linux
 	@rm -f z64rom-linux.7z

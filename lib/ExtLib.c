@@ -28,10 +28,10 @@ char* sPrintfPreType[][4] = {
 		NULL,
 	},
 	{
-		"debg",
-		"warn",
-		"err!",
-		"info"
+		">",
+		">",
+		">",
+		">"
 	}
 };
 char** sSubPathList;
@@ -341,7 +341,7 @@ void printf_toolinfo(const char* toolname, const char* fmt, ...) {
 
 static void __printf_call(u32 type) {
 	char* color[4] = {
-		PRNT_GRAY,
+		PRNT_PRPL,
 		PRNT_YELW,
 		PRNT_REDD,
 		PRNT_CYAN
@@ -351,7 +351,7 @@ static void __printf_call(u32 type) {
 		"%s"
 		PRNT_GRAY "["
 		"%s%s"
-		PRNT_GRAY "]:\t"
+		PRNT_GRAY "]: "
 		PRNT_RSET,
 		sPrintfPrefix,
 		color[type],
