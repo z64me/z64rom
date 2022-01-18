@@ -1,4 +1,4 @@
-char* gObjectName[] = {
+const char* gObjectName[] = {
 	"invalid",
 	"gameplay_keep",
 	"gameplay_field_keep",
@@ -403,7 +403,7 @@ char* gObjectName[] = {
 	"zl4",
 };
 
-char* gActorName[] = {
+const char* gActorName[] = {
 	"Player",
 	"Unset_1",
 	"En_Test",
@@ -877,7 +877,7 @@ char* gActorName[] = {
 	"Obj_Warp2block",
 };
 
-char* gStateName[] = {
+const char* gStateName[] = {
 	"TitleSetup",
 	"LevelSelect",
 	"BootTitle",
@@ -886,7 +886,7 @@ char* gStateName[] = {
 	"FileChoose"
 };
 
-char* gSceneName[] = {
+const char* gSceneName[] = {
 	"Ydan",
 	"Ddan",
 	"Bdan",
@@ -999,7 +999,7 @@ char* gSceneName[] = {
 	"Testroom",
 };
 
-char* gBankName[] = {
+const char* gBankName[] = {
 	"MasterBank",
 	"Actor",
 	"Nature",
@@ -1037,10 +1037,13 @@ char* gBankName[] = {
 	"EndingB",
 	"Fanfare",
 	"KaeporaGaebora",
-	"Unk"
+	"Unk",
+	"Unk",
+	"Unk",
+	"Unk",
 };
 
-char* gSequenceName[] = {
+const char* gSequenceName[] = {
 	"Nothing",
 	"Nothing",
 	"HyruleField",

@@ -66,7 +66,7 @@ typedef struct {
 	u8     pan;
 	u8     loaded;
 	Sound  sound;
-	void32 envelope; // AdsrEnvelopePoint*
+	Adsr envelope[]; // AdsrEnvelopePoint*
 } Drum; // size >= 0x14
 
 typedef struct SoundFont {

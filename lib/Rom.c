@@ -19,7 +19,7 @@ static s32 Rom_Extract(MemFile* mem, RomFile rom, char* name) {
 	return 1;
 }
 
-static void Rom_Config_Actor(MemFile* config, ActorEntry* actorOvl, char* name, char* out) {
+static void Rom_Config_Actor(MemFile* config, ActorEntry* actorOvl, const char* name, char* out) {
 	MemFile_Clear(config);
 	Config_WriteTitle_Str(name);
 	Config_WriteVar_Hex("vram_addr", ReadBE(actorOvl->vramStart));
@@ -28,7 +28,7 @@ static void Rom_Config_Actor(MemFile* config, ActorEntry* actorOvl, char* name, 
 	MemFile_SaveFile_String(config, out);
 }
 
-static void Rom_Config_GameState(MemFile* config, GameStateEntry* stateOvl, char* name, char* out) {
+static void Rom_Config_GameState(MemFile* config, GameStateEntry* stateOvl, const char* name, char* out) {
 	MemFile_Clear(config);
 	Config_WriteTitle_Str(name);
 	Config_WriteVar_Hex("vram_addr", ReadBE(stateOvl->vramStart));
@@ -37,7 +37,7 @@ static void Rom_Config_GameState(MemFile* config, GameStateEntry* stateOvl, char
 	MemFile_SaveFile_String(config, out);
 }
 
-static void Rom_Config_Player(Rom* rom, MemFile* config, KaleidoEntry* player, char* name, char* out) {
+static void Rom_Config_Player(Rom* rom, MemFile* config, KaleidoEntry* player, const char* name, char* out) {
 	u16* dataHi;
 	u16* dataLo;
 	u32 init;
@@ -71,7 +71,7 @@ static void Rom_Config_Player(Rom* rom, MemFile* config, KaleidoEntry* player, c
 	MemFile_SaveFile_String(config, out);
 }
 
-static void Rom_Config_Scene(MemFile* config, SceneEntry* sceneEntry, char* name, char* out) {
+static void Rom_Config_Scene(MemFile* config, SceneEntry* sceneEntry, const char* name, char* out) {
 	MemFile_Clear(config);
 	Config_WriteTitle_Str(name);
 	Config_WriteVar_Int("unk_a", ReadBE(sceneEntry->unk_10));
@@ -168,7 +168,6 @@ static void Rom_Config_Sfx(Rom* rom, MemFile* config, Sound* sfx, char* name, ch
 }
 
 static void Rom_Config_Drum(Rom* rom, MemFile* config, Drum* drum, char* name, char* out, u32 off) {
-	Adsr* envelope = SegmentedToVirtual(0x1, ReadBE(drum->envelope));
 	u32 val;
 	f32* f = (f32*)&val;
 	
@@ -179,12 +178,12 @@ static void Rom_Config_Drum(Rom* rom, MemFile* config, Drum* drum, char* name, c
 	
 	Config_SPrintf("\n");
 	Config_WriteTitle_Str("Envelope");
-	Config_WriteVar_Int("attack_rate", ReadBE(envelope[0].rate));
-	Config_WriteVar_Int("attack_level", ReadBE(envelope[0].level));
-	Config_WriteVar_Int("hold_rate", ReadBE(envelope[1].rate));
-	Config_WriteVar_Int("hold_level", ReadBE(envelope[1].level));
-	Config_WriteVar_Int("decay_rate", ReadBE(envelope[2].rate));
-	Config_WriteVar_Int("decay_level", ReadBE(envelope[2].level));
+	Config_WriteVar_Int("attack_rate", ReadBE(drum->envelope[0].rate));
+	Config_WriteVar_Int("attack_level", ReadBE(drum->envelope[0].level));
+	Config_WriteVar_Int("hold_rate", ReadBE(drum->envelope[1].rate));
+	Config_WriteVar_Int("hold_level", ReadBE(drum->envelope[1].level));
+	Config_WriteVar_Int("decay_rate", ReadBE(drum->envelope[2].rate));
+	Config_WriteVar_Int("decay_level", ReadBE(drum->envelope[2].level));
 	Config_WriteVar_Int("release", drum->release);
 	
 	Config_SPrintf("\n");
@@ -244,6 +243,7 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			printf_debug_align("numSfx", "%d", ReadBE(entry->numSfx));
 			printf_debug_align("numDrum", "%d", ReadBE(entry->numDrum));
 			printf_debug_align("bank", "%08X", ReadBE(entry->romAddr) + rom->addr.segment.fontRom);
+			printf_debug_align("size", "%08X", ReadBE(entry->size));
 		#endif
 		
 		bank = SegmentedToVirtual(0x0, ReadBE(entry->romAddr) + rom->addr.segment.fontRom);
@@ -261,6 +261,10 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			
 			for (s32 j = 0; j < entry->numInst; j++) {
 				char* output = Dir_File("%d-Inst.cfg", j);
+				
+				if (gPrintfSuppress == PSL_DEBUG)
+					printf_progress("sfx", j + 1, entry->numInst);
+				
 				if (bank->instruments[j] == 0)
 					continue;
 				instrument = SegmentedToVirtual(0x1, ReadBE(bank->instruments[j]));
@@ -281,8 +285,13 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			for (s32 j = 0; j < ReadBE(entry->numSfx); j++) {
 				char* output = Dir_File("%d-Sfx.cfg", j);
 				sfx = SegmentedToVirtual(0x1, ReadBE(bank->sfx));
+				
+				if (gPrintfSuppress == PSL_DEBUG)
+					printf_progress("sfx", j + 1, ReadBE(entry->numSfx));
+				
 				if (sfx[j].sample == 0)
 					continue;
+				
 				Rom_Config_Sfx(rom, config, &sfx[j], "Sound Effect", output, off);
 				String_Copy(sBankFiles[sBankNum++], output);
 			}
@@ -301,11 +310,18 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				char* output = Dir_File("%d-Drum.cfg", j);
 				u32* wow = SegmentedToVirtual(0x1, ReadBE(bank->drums));
 				
-				if (wow[j] == 0)
+				if (gPrintfSuppress == PSL_DEBUG)
+					printf_progress("drum", j + 1, entry->numDrum);
+				
+				if (wow[j] == 0) {
 					continue;
+				}
+				
 				drum = SegmentedToVirtual(0x1, ReadBE(wow[j]));
-				if (drum->sound.sample == 0)
+				if (drum->sound.sample == 0) {
 					continue;
+				}
+				
 				Rom_Config_Drum(rom, config, drum, "Drum", output, off);
 				String_Copy(sBankFiles[sBankNum++], output);
 			}
@@ -313,10 +329,10 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			Dir_Leave();
 		}
 		
+		SetSegment(0x1, NULL);
 		Dir_Leave();
 	}
 	Dir_Leave();
-	SetSegment(0x1, NULL);
 }
 
 static void Rom_Dump_Sequences(Rom* rom, MemFile* dataFile, MemFile* config) {
@@ -685,24 +701,28 @@ void Rom_Dump(Rom* rom) {
 								break;
 							}
 							if ((seg[0] & 0xFF) == 0x14) {
-								printf_error_align("Scene", "Failed finding room list");
+								printf_warning_align("Scene", "Failed finding room list");
+								seg = 0;
+								break;
 							}
 							seg++;
 						}
 						
-						roomNum = (seg[0] & 0xFF00) >> 8;
-						roomListSeg = ReadBE(seg[1]) & 0xFFFFFF;
-						
-						for (s32 j = 0; j < roomNum; j++) {
-							char* out = Dir_File("room_%d.zroom", j);
+						if (seg) {
+							roomNum = (seg[0] & 0xFF00) >> 8;
+							roomListSeg = ReadBE(seg[1]) & 0xFFFFFF;
 							
-							vromSeg = SegmentedToVirtual(0x2, roomListSeg + 8 * j);
-							printf_debugExt_align("Room Extract", "Scene Segment %X", VirtualToSegmented(0x2, vromSeg));
-							Rom_Extract(
-								&dataFile,
-								Rom_GetRomFile(rom, vromSeg[0], vromSeg[1]),
-								out
-							);
+							for (s32 j = 0; j < roomNum; j++) {
+								char* out = Dir_File("room_%d.zroom", j);
+								
+								vromSeg = SegmentedToVirtual(0x2, roomListSeg + 8 * j);
+								printf_debugExt_align("Room Extract", "Scene Segment %X", VirtualToSegmented(0x2, vromSeg));
+								Rom_Extract(
+									&dataFile,
+									Rom_GetRomFile(rom, vromSeg[0], vromSeg[1]),
+									out
+								);
+							}
 						}
 					}
 				} Dir_Leave();
@@ -724,6 +744,39 @@ void Rom_Dump(Rom* rom) {
 }
 
 static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
+	ItemList instList;
+	ItemList sfxList;
+	ItemList drumList;
+	
+	MemFile_Clear(config);
+	MemFile_Clear(dataFile);
+	
+	if (Dir_Stat("instruments/")) {
+		Dir_Enter("instruments/");
+		Dir_ItemList(&instList, false);
+		Dir_Leave();
+	}
+	
+	if (Dir_Stat("sfx/")) {
+		Dir_Enter("sfx/");
+		Dir_ItemList(&sfxList, false);
+		Dir_Leave();
+	}
+	
+	if (Dir_Stat("drums/")) {
+		Dir_Enter("drums/");
+		Dir_ItemList(&drumList, false);
+		Dir_Leave();
+	}
+	
+	printf_debugExt_align("Bank", "%s", Dir_Current());
+	printf_debug_align("Instruments", "%d", instList.num);
+	printf_debug_align("Sfx", "%d", sfxList.num);
+	printf_debug_align("Drums", "%d", drumList.num);
+	
+	ItemList_Free(&instList);
+	ItemList_Free(&sfxList);
+	ItemList_Free(&drumList);
 }
 
 void Rom_Build(Rom* rom) {
@@ -734,17 +787,19 @@ void Rom_Build(Rom* rom) {
 	MemFile_Malloc(&dataFile, 0x460000);
 	MemFile_Malloc(&config, 0x25000);
 	
-	Dir_Enter("sound/"); {
-		Dir_Enter("soundfont"); {
-			Dir_ItemList(&itemList, true);
-			
-			for (s32 i = 0; i < itemList.num; i++) {
-				Dir_Enter(itemList.item[i]); {
-					Rom_Build_SoundFont(rom, &dataFile, &config);
-				} Dir_Leave();
-			}
-			
-			ItemList_Free(&itemList);
+	Dir_Enter("rom/"); {
+		Dir_Enter("sound/"); {
+			Dir_Enter("soundfont/"); {
+				Dir_ItemList(&itemList, true);
+				
+				for (s32 i = 0; i < itemList.num; i++) {
+					Dir_Enter(itemList.item[i]); {
+						Rom_Build_SoundFont(rom, &dataFile, &config);
+					} Dir_Leave();
+				}
+				
+				ItemList_Free(&itemList);
+			} Dir_Leave();
 		} Dir_Leave();
 	} Dir_Leave();
 }
@@ -769,8 +824,10 @@ void Rom_New(Rom* rom, char* romName) {
 	}
 	
 	hdr = (char*)&rom->file.cast.u8[0x3B];
+	SetSegment(0x0, rom->file.data);
 	
 	if (hdr[0] == 'N' || hdr[4] == 0x0F) {
+		u16* addr;
 		// Debug
 		rom->addr.table.dmaTable = 0x012F70;
 		rom->addr.table.objTable = 0xB9E6C8;
@@ -784,9 +841,23 @@ void Rom_New(Rom* rom, char* romName) {
 		rom->addr.table.fontTable = 0xBCC270;
 		rom->addr.table.sampleTable = 0xBCCD90;
 		
-		rom->addr.segment.seqRom = 0x44DF0;
-		rom->addr.segment.fontRom = 0x19030;
-		rom->addr.segment.smplRom = 0x94870;
+		addr = SegmentedToVirtual(0x0, 0xB5A4AE);
+		rom->addr.segment.seqRom = (ReadBE(addr[0]) - (ReadBE(addr[2]) > 0x7FFF)) << 16;
+		rom->addr.segment.seqRom |= ReadBE(addr[2]);
+		// rom->addr.segment.seqRom = 0x44DF0;
+		printf_debug_align("SequenceRom", "%08X", rom->addr.segment.seqRom);
+		
+		addr = SegmentedToVirtual(0x0, 0xB5A4C2);
+		rom->addr.segment.fontRom = (ReadBE(addr[0]) - (ReadBE(addr[2]) > 0x7FFF)) << 16;
+		rom->addr.segment.fontRom |= ReadBE(addr[2]);
+		// rom->addr.segment.fontRom = 0x19030;
+		printf_debug_align("FontRom", "%08X", rom->addr.segment.fontRom);
+		
+		addr = SegmentedToVirtual(0x0, 0xB5A4D6);
+		rom->addr.segment.smplRom = (ReadBE(addr[0]) - (ReadBE(addr[2]) > 0x7FFF)) << 16;
+		rom->addr.segment.smplRom |= ReadBE(addr[2]);
+		// rom->addr.segment.smplRom = 0x94870;
+		printf_debug_align("SampleRom", "%08X", rom->addr.segment.smplRom);
 		
 		rom->addr.tblNum.dma = 1548;
 		rom->addr.tblNum.obj = 402;
@@ -846,7 +917,6 @@ void Rom_New(Rom* rom, char* romName) {
 		};
 	}
 	
-	SetSegment(0x0, rom->file.data);
 	rom->dmaTable = SegmentedToVirtual(0x0, rom->addr.table.dmaTable);
 	rom->objectTable = SegmentedToVirtual(0x0, rom->addr.table.objTable);
 	rom->actorTable = SegmentedToVirtual(0x0, rom->addr.table.actorTable);

@@ -67,3 +67,4 @@ prvFileList
 tools/*
 *.exe
 bin/*
+debug/*

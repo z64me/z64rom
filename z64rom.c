@@ -39,6 +39,14 @@ s32 Main(s32 argc, char* argv[]) {
 		Rom_Dump(rom);
 		Rom_Free(rom);
 	} else {
+		if (Dir_Stat("rom/")) {
+			printf_toolinfo(sToolName, "\n");
+			Rom_New(rom, "oot-debug.z64");
+			Rom_Build(rom);
+			Rom_Free(rom);
+			
+			return 0;
+		}
 		printf_toolinfo(sToolName, sToolUsage);
 	}
 	

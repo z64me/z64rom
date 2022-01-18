@@ -125,6 +125,8 @@ typedef struct MemFile {
 } MemFile;
 
 typedef struct ItemList {
+	char*  buffer;
+	u32    writePoint;
 	char** item;
 	u32    num;
 } ItemList;
@@ -148,6 +150,7 @@ void Dir_Make(char* dir, ...);
 void Dir_MakeCurrent(void);
 char* Dir_Current(void);
 char* Dir_File(char* fmt, ...);
+s32 Dir_Stat(char* dir);
 void Dir_ItemList(ItemList* itemList, bool isPath);
 void MakeDir(char* dir, ...);
 char* CurWorkDir(void);

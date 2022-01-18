@@ -18,8 +18,9 @@ PrintfSuppressLevel gPrintfSuppress = 0;
 char* sPrintfPrefix = "ExtLib";
 u8 sPrintfType = 1;
 u8 gPrintfProgressing;
+u32 overFlowTestA;
 u8* sSegment[255];
-char sCurrentPath[256 * 4];
+char sCurrentPath[1024];
 char* sPrintfPreType[][4] = {
 	{
 		NULL,
@@ -34,8 +35,6 @@ char* sPrintfPreType[][4] = {
 		">"
 	}
 };
-char** sSubPathList;
-u32 sSubPathNum;
 DirParam sDirParam;
 
 // Segment
@@ -72,42 +71,45 @@ void Dir_Set(char* path, ...) {
 	va_end(args);
 }
 
-void Dir_Enter(char* ent, ...) {
+void Dir_Enter(char* fmt, ...) {
 	va_list args;
+	char buffer[256 * 2];
 	
-	va_start(args, ent);
-	vsprintf(sCurrentPath + strlen(sCurrentPath), ent, args);
+	va_start(args, fmt);
+	vsprintf(buffer, fmt, args);
 	va_end(args);
+	
+	if (sDirParam != DIR__MAKE_ON_ENTER)
+		printf_warning("warning %08X", sDirParam);
+	
+	if (!(sDirParam & DIR__MAKE_ON_ENTER)) {
+		if (!Dir_Stat(buffer)) {
+			printf_warning("%08X", sDirParam);
+			printf_error("Could not enter folder [%s%s]", sCurrentPath, buffer);
+		}
+	}
+	
+	String_Merge(sCurrentPath, buffer);
+	
 	if (sDirParam & DIR__MAKE_ON_ENTER) {
 		Dir_MakeCurrent();
-	} else {
-		struct stat st = { 0 };
-		if (stat(sCurrentPath, &st) == -1)
-			printf_error_align("Can't enter", "%s", sCurrentPath);
 	}
 }
 
 void Dir_Leave(void) {
-	char* new;
-	
 	sCurrentPath[strlen(sCurrentPath) - 1] = '\0';
-	new = String_GetPath(sCurrentPath);
-	memmove(sCurrentPath, new, strlen(new) + 1);
+	String_Copy(sCurrentPath, String_GetPath(sCurrentPath));
 }
 
 void Dir_Make(char* dir, ...) {
-	char buffer[256 * 4];
 	char argBuf[256 * 4];
-	
 	va_list args;
 	
 	va_start(args, dir);
-	String_Copy(buffer, sCurrentPath);
 	vsprintf(argBuf, dir, args);
-	String_Merge(buffer, argBuf);
-	
-	MakeDir(buffer);
 	va_end(args);
+	
+	MakeDir(tprintf("%s%s", sCurrentPath, argBuf));
 }
 
 void Dir_MakeCurrent(void) {
@@ -131,19 +133,30 @@ char* Dir_Current(void) {
 }
 
 char* Dir_File(char* fmt, ...) {
-	static char buffer[256 * 4];
+	static char buffer[16][256 * 4];
+	static u32 bufID;
 	char argBuf[256 * 4];
-	
 	va_list args;
 	
-	va_start(args, fmt);
-	String_Copy(buffer, sCurrentPath);
-	vsprintf(argBuf, fmt, args);
-	String_Merge(buffer, argBuf);
+	bufID++;
+	bufID = bufID % 16;
 	
+	va_start(args, fmt);
+	vsprintf(argBuf, fmt, args);
 	va_end(args);
 	
-	return buffer;
+	String_Copy(buffer[bufID], tprintf("%s%s", sCurrentPath, argBuf));
+	
+	return buffer[bufID];
+}
+
+s32 Dir_Stat(char* dir) {
+	struct stat st = { 0 };
+	
+	if (stat(tprintf("%s%s", sCurrentPath, dir), &st) == -1)
+		return 0;
+	
+	return 1;
 }
 
 static bool __isDir(char* path) {
@@ -160,6 +173,7 @@ static bool __isDir(char* path) {
 
 void Dir_ItemList(ItemList* itemList, bool isPath) {
 	DIR* dir = opendir(sCurrentPath);
+	u32 bufSize = 0;
 	struct dirent* entry;
 	
 	*itemList = (ItemList) { 0 };
@@ -173,10 +187,12 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 				if (entry->d_name[0] == '.')
 					continue;
 				itemList->num++;
+				bufSize += strlen(entry->d_name) + 2;
 			}
 		} else {
 			if (!__isDir(Dir_File(entry->d_name))) {
 				itemList->num++;
+				bufSize += strlen(entry->d_name) + 2;
 			}
 		}
 	}
@@ -184,6 +200,7 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 	if (itemList->num) {
 		u32 i = 0;
 		dir = opendir(sCurrentPath);
+		itemList->buffer = Lib_Malloc(0, bufSize);
 		itemList->item = Lib_Malloc(0, sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
@@ -191,13 +208,15 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 				if (__isDir(Dir_File(entry->d_name))) {
 					if (entry->d_name[0] == '.')
 						continue;
-					itemList->item[i] = Lib_Malloc(0, strlen(entry->d_name));
-					String_Copy(itemList->item[i++], entry->d_name);
+					String_Copy(&itemList->buffer[itemList->writePoint], entry->d_name);
+					itemList->item[i++] = &itemList->buffer[itemList->writePoint];
+					itemList->writePoint += strlen(itemList->item[i - 1]) + 1;
 				}
 			} else {
 				if (!__isDir(Dir_File(entry->d_name))) {
-					itemList->item[i] = Lib_Malloc(0, strlen(entry->d_name));
-					String_Copy(itemList->item[i++], entry->d_name);
+					String_Copy(&itemList->buffer[itemList->writePoint], entry->d_name);
+					itemList->item[i++] = &itemList->buffer[itemList->writePoint];
+					itemList->writePoint += strlen(itemList->item[i - 1]) + 1;
 				}
 			}
 		}
@@ -246,31 +265,29 @@ char* CurWorkDir(void) {
 
 // ItemList
 void ItemList_Free(ItemList* itemList) {
-	if (itemList->num) {
-		for (s32 i = 0; i < itemList->num; i++) {
-			if (itemList->item[i])
-				free(itemList->item[i]);
-		}
-	}
-	
-	if (itemList->item)
+	if (itemList->item != NULL)
 		free(itemList->item);
 	
-	itemList->num = 0;
+	if (itemList->buffer)
+		free(itemList->buffer);
+	
+	*itemList = (ItemList) { 0 };
 }
 
 // printf
-
 char* tprintf(char* fmt, ...) {
-	static char buffer[256 * 4];
+	static char buffer[16][256 * 4];
+	static u32 id;
+	
+	id = (id + 1) % 16;
 	
 	va_list args;
 	
 	va_start(args, fmt);
-	vsprintf(buffer, fmt, args);
+	vsprintf(buffer[id], fmt, args);
 	va_end(args);
 	
-	return buffer;
+	return buffer[id];
 }
 
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl) {

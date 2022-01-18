@@ -1,4 +1,4 @@
-CFLAGS         := -Os -s -flto -Wall -I./
+CFLAGS         := -Os -s -flto -Wall
 SOURCE_C       := $(shell find lib/* -type f -name '*.c')
 SOURCE_O_WIN32 := $(foreach f,$(SOURCE_C:.c=.o),bin/win32/$f)
 SOURCE_O_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/$f)
@@ -14,7 +14,7 @@ PRNT_PRPL := \e[0;95m
 PRNT_CYAN := \e[0;96m
 PRNT_RSET := \e[m
 
-HEADER := lib/z64rom.h lib/z64audio.h lib/ExtLib.h
+HEADER := lib/z64rom.h lib/ExtLib.h lib/Audio.h
 
 # Make build directories
 $(shell mkdir -p bin/ $(foreach dir, \
@@ -25,8 +25,8 @@ $(shell mkdir -p bin/ $(foreach dir, \
 
 default: linux
 all: copyz64audio linux-release win32-release
-linux: copyz64audio $(SOURCE_O_LINUX) z64rom
-win32: copyz64audio $(SOURCE_O_WIN32) bin/icon.o z64rom.exe
+linux: $(SOURCE_O_LINUX) copyz64audio z64rom
+win32: $(SOURCE_O_WIN32) copyz64audio bin/icon.o z64rom.exe
 
 copyz64audio:
 	@cp ../z64audio/z64audio.exe tools/z64audio.exe
@@ -49,7 +49,6 @@ win32-release: win32
 	@rm -f bin/release-win32/tools/z64audio
 	@upx -9 --lzma bin/release-win32/z64rom.exe > /dev/null
 	@7z a z64rom-win32.7z ./bin/release-win32/* > /dev/null
-	
 
 clear:
 	@rm -f -R rom/*
