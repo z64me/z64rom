@@ -450,4 +450,22 @@ const N64AudioInfo gSampleInfo[] = {
 	/* 446 */ { 0, 0, &gSampleInfo[405], "Perc_Gong" }, // Dublicate
 	/* 447 */ { 0, 0, &gSampleInfo[406], "Perc_WindChime" }, // Dublicate
 	/* 448 */ { 0, 0, &gSampleInfo[409], "Inst_VoicePad" }, // Dublicate
+	
+	// OoT 1.0 temp fix
+	/* 000 */ { 32000, 0, NULL, "Inst_Temp0" },
+	/* 001 */ { 32000, 0, NULL, "Inst_Temp1" },
+	/* 002 */ { 32000, 0, NULL, "Inst_Temp2" },
+	/* 003 */ { 32000, 0, NULL, "Inst_Temp3" },
+	/* 004 */ { 32000, 0, NULL, "Inst_Temp4" },
+	/* 005 */ { 32000, 0, NULL, "Inst_Temp5" },
+	/* 006 */ { 32000, 0, NULL, "Inst_Temp6" },
+	/* 007 */ { 32000, 0, NULL, "Inst_Temp7" },
+	/* 008 */ { 32000, 0, NULL, "Inst_Temp8" },
+	/* 009 */ { 32000, 0, NULL, "Inst_Temp9" },
+	/* 010 */ { 32000, 0, NULL, "Inst_Temp10" },
+	/* 011 */ { 32000, 0, NULL, "Inst_Temp11" },
+	/* 012 */ { 32000, 0, NULL, "Inst_Temp12" },
+	/* 013 */ { 32000, 0, NULL, "Inst_Temp13" },
+	/* 014 */ { 32000, 0, NULL, "Inst_Temp14" },
+	/* 015 */ { 32000, 0, NULL, "Inst_Temp15" },
 };

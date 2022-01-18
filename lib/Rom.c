@@ -268,8 +268,10 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			for (s32 j = 0; j < entry->numInst; j++) {
 				char* output = Dir_File("%d-Inst.cfg", j);
 				
-				if (gPrintfSuppress == PSL_DEBUG)
-					printf_progress("inst", j + 1, entry->numInst);
+				#ifndef NDEBUG
+					if (gPrintfSuppress == PSL_DEBUG)
+						printf_progress("inst", j + 1, entry->numInst);
+				#endif
 				
 				if (bank->instruments[j] == 0)
 					continue;
@@ -293,8 +295,10 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				char* output = Dir_File("%d-Sfx.cfg", j);
 				sfx = SegmentedToVirtual(0x1, ReadBE(bank->sfx));
 				
-				if (gPrintfSuppress == PSL_DEBUG)
-					printf_progress("sfx", j + 1, ReadBE(entry->numSfx));
+				#ifndef NDEBUG
+					if (gPrintfSuppress == PSL_DEBUG)
+						printf_progress("sfx", j + 1, ReadBE(entry->numSfx));
+				#endif
 				
 				if (sfx[j].sample == 0)
 					continue;
@@ -318,8 +322,10 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				char* output = Dir_File("%d-Drum.cfg", j);
 				u32* wow = SegmentedToVirtual(0x1, ReadBE(bank->drums));
 				
-				if (gPrintfSuppress == PSL_DEBUG)
-					printf_progress("drum", j + 1, entry->numDrum);
+				#ifndef NDEBUG
+					if (gPrintfSuppress == PSL_DEBUG)
+						printf_progress("drum", j + 1, entry->numDrum);
+				#endif
 				
 				if (wow[j] == 0) {
 					continue;
@@ -521,10 +527,16 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 				String_Merge(sysbuf, Dir_File("vadpcm.bin"));
 				String_Merge(sysbuf, " --o ");
 				String_Merge(sysbuf, Dir_File("Sample.wav"));
-				if (gPrintfSuppress == PSL_DEBUG)
-					String_Merge(sysbuf, " --D");
-				else
+				
+				#ifndef NDEBUG
+					if (gPrintfSuppress == PSL_DEBUG)
+						String_Merge(sysbuf, " --D");
+					else
+						String_Merge(sysbuf, " --S");
+				#else
 					String_Merge(sysbuf, " --S");
+				#endif
+				
 				String_Merge(sysbuf, " --srate ");
 				String_Merge(sysbuf, tprintf("%d", sampRate));
 				String_Merge(sysbuf, " --tuning ");
