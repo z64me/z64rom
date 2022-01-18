@@ -5,6 +5,9 @@ SOURCE_O_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/$f)
 SOURCE_O_RELEASE_WIN32 := $(foreach f,$(SOURCE_C:.c=.o),bin/win32/ndebug/$f)
 SOURCE_O_RELEASE_LINUX := $(foreach f,$(SOURCE_C:.c=.o),bin/linux/ndebug/$f)
 
+RELEASE_EXECUTABLE_LINUX := bin/release-linux/z64rom
+RELEASE_EXECUTABLE_WIN32 := bin/release-win32/z64rom.exe
+
 PRNT_DGRY := \e[90;2m
 PRNT_GRAY := \e[0;90m
 PRNT_DRED := \e[91;2m
@@ -22,41 +25,44 @@ HEADER := lib/z64rom.h lib/ExtLib.h lib/Audio.h
 $(shell mkdir -p bin/ $(foreach dir, \
 	$(dir $(SOURCE_O_WIN32)) \
 	$(dir $(SOURCE_O_LINUX)) \
+	$(dir $(RELEASE_EXECUTABLE_LINUX)) \
+	$(dir $(RELEASE_EXECUTABLE_WIN32)) \
 	$(dir $(SOURCE_O_RELEASE_WIN32)) \
 	$(dir $(SOURCE_O_RELEASE_LINUX)), $(dir)))
+
+ifeq (,$(wildcard ../z64audio/Makefile))
+	$(shell clone https://github.com/z64tools/z64audio.git ../z64audio)
+endif
 
 .PHONY: copyz64audio clean default win32 linux all-release linux-release win32-release
 
 default: linux
-all: copyz64audio linux win32
-all-release: copyz64audio linux-release win32-release
-linux: $(SOURCE_O_LINUX) z64rom copyz64audio
-win32: $(SOURCE_O_WIN32) bin/icon.o z64rom.exe copyz64audio
+all: linux win32
+all-release: tools/z64audio linux-release win32-release
+linux: tools/z64audio $(SOURCE_O_LINUX) z64rom
+win32: tools/z64audio $(SOURCE_O_WIN32) bin/icon.o z64rom.exe
 
-copyz64audio:
+tools/z64audio: ../z64audio/z64audio.c
+	@cd ../z64audio && make all -j
 	@cp ../z64audio/z64audio.exe tools/z64audio.exe
 	@cp ../z64audio/z64audio tools/z64audio
 
-linux-release: $(SOURCE_O_RELEASE_LINUX) copyz64audio z64rom-release
+linux-release: tools/z64audio $(SOURCE_O_RELEASE_LINUX) $(RELEASE_EXECUTABLE_LINUX)
 	@rm -f z64rom-linux.7z
-	@mkdir -p bin/release-linux/
-	@mv z64rom-release bin/release-linux/z64rom
 	@cp -r tools/ bin/release-linux/
 	@rm -f bin/release-linux/tools/z64audio.exe
-	@upx -9 --lzma bin/release-linux/z64rom > /dev/null
 	@7z a z64rom-linux.7z ./bin/release-linux/* > /dev/null
 
-win32-release: $(SOURCE_O_RELEASE_WIN32) copyz64audio z64rom-release.exe
+win32-release: tools/z64audio $(SOURCE_O_RELEASE_WIN32) $(RELEASE_EXECUTABLE_WIN32)
 	@rm -f z64rom-win32.7z
-	@mkdir -p bin/release-win32/
-	@mv z64rom-release.exe bin/release-win32/z64rom.exe
 	@cp -r tools/ bin/release-win32/
 	@rm -f bin/release-win32/tools/z64audio
-	@upx -9 --lzma bin/release-win32/z64rom.exe > /dev/null
 	@7z a z64rom-win32.7z ./bin/release-win32/* > /dev/null
 
 clear:
 	@rm -f -R rom/*
+	@rm -f tools/z64audio
+	@rm -f tools/z64audio.exe
 
 clean:
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find bin/* -type f)$(PRNT_RSET)]"
@@ -82,9 +88,10 @@ bin/linux/%.o: %.c $(HEADER)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
 	@gcc -c -o $@ $< $(CFLAGS) -Wno-missing-braces
 
-z64rom-release: z64rom.c $(SOURCE_O_RELEASE_LINUX)
+$(RELEASE_EXECUTABLE_LINUX): z64rom.c $(SOURCE_O_RELEASE_LINUX)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
 	@gcc -o $@ $^ $(CFLAGS) -DNDEBUG -lm
+	@upx -9 --lzma $@ > /dev/null
 
 z64rom: z64rom.c $(SOURCE_O_LINUX)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
@@ -110,9 +117,10 @@ bin/win32/%.o: %.c $(HEADER)
 bin/icon.o: lib/icon.rc lib/icon.ico
 	@i686-w64-mingw32.static-windres -o $@ $<
 
-z64rom-release.exe: z64rom.c bin/icon.o $(SOURCE_O_RELEASE_WIN32)
+$(RELEASE_EXECUTABLE_WIN32): z64rom.c bin/icon.o $(SOURCE_O_RELEASE_WIN32)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
 	@i686-w64-mingw32.static-gcc -o $@ $^ $(CFLAGS) -DNDEBUG -lm -D_WIN32
+	@upx -9 --lzma $@ > /dev/null
 
 z64rom.exe: z64rom.c bin/icon.o $(SOURCE_O_WIN32)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"

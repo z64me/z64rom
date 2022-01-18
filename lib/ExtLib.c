@@ -183,12 +183,12 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 				if (entry->d_name[0] == '.')
 					continue;
 				itemList->num++;
-				bufSize += strlen(entry->d_name) + 2;
+				bufSize += strlen(sCurrentPath) + strlen(entry->d_name) + 2;
 			}
 		} else {
 			if (!__isDir(Dir_File(entry->d_name))) {
 				itemList->num++;
-				bufSize += strlen(entry->d_name) + 2;
+				bufSize += strlen(sCurrentPath) + strlen(entry->d_name) + 2;
 			}
 		}
 	}
@@ -204,13 +204,13 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 				if (__isDir(Dir_File(entry->d_name))) {
 					if (entry->d_name[0] == '.')
 						continue;
-					String_Copy(&itemList->buffer[itemList->writePoint], entry->d_name);
+					String_Copy(&itemList->buffer[itemList->writePoint], tprintf("%s%s/", sCurrentPath, entry->d_name));
 					itemList->item[i++] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i - 1]) + 1;
 				}
 			} else {
 				if (!__isDir(Dir_File(entry->d_name))) {
-					String_Copy(&itemList->buffer[itemList->writePoint], entry->d_name);
+					String_Copy(&itemList->buffer[itemList->writePoint], tprintf("%s%s/", sCurrentPath, entry->d_name));
 					itemList->item[i++] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i - 1]) + 1;
 				}
