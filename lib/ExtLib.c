@@ -67,20 +67,17 @@ void Dir_Set(char* path, ...) {
 	
 	memset(sCurrentPath, 0, 1024);
 	va_start(args, path);
-	vsprintf(sCurrentPath, path, args);
+	vsnprintf(sCurrentPath, ArrayCount(sCurrentPath), path, args);
 	va_end(args);
 }
 
 void Dir_Enter(char* fmt, ...) {
 	va_list args;
-	char buffer[256 * 2];
+	char buffer[256 * 4];
 	
 	va_start(args, fmt);
-	vsprintf(buffer, fmt, args);
+	vsnprintf(buffer, ArrayCount(buffer), fmt, args);
 	va_end(args);
-	
-	if (sDirParam != DIR__MAKE_ON_ENTER)
-		printf_warning("warning %08X", sDirParam);
 	
 	if (!(sDirParam & DIR__MAKE_ON_ENTER)) {
 		if (!Dir_Stat(buffer)) {
@@ -106,7 +103,7 @@ void Dir_Make(char* dir, ...) {
 	va_list args;
 	
 	va_start(args, dir);
-	vsprintf(argBuf, dir, args);
+	vsnprintf(argBuf, ArrayCount(argBuf), dir, args);
 	va_end(args);
 	
 	MakeDir(tprintf("%s%s", sCurrentPath, argBuf));
@@ -142,7 +139,7 @@ char* Dir_File(char* fmt, ...) {
 	bufID = bufID % 16;
 	
 	va_start(args, fmt);
-	vsprintf(argBuf, fmt, args);
+	vsnprintf(argBuf, ArrayCount(argBuf), fmt, args);
 	va_end(args);
 	
 	String_Copy(buffer[bufID], tprintf("%s%s", sCurrentPath, argBuf));
@@ -230,7 +227,7 @@ void MakeDir(char* dir, ...) {
 	va_list args;
 	
 	va_start(args, dir);
-	vsprintf(buffer, dir, args);
+	vsnprintf(buffer, ArrayCount(buffer), dir, args);
 	
 	if (stat(buffer, &st) == -1) {
 		#ifdef _WIN32
@@ -284,7 +281,7 @@ char* tprintf(char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	vsprintf(buffer[id], fmt, args);
+	vsnprintf(buffer[id], ArrayCount(buffer[id]), fmt, args);
 	va_end(args);
 	
 	return buffer[id];
@@ -788,6 +785,8 @@ void* File_Load(void* destSize, char* filepath) {
 void File_Save(char* filepath, void* src, s32 size) {
 	FILE* file = fopen(filepath, "w");
 	
+	printf_debugExt_align("Save", "%s", filepath);
+	
 	if (file == NULL) {
 		printf_error("Failed to fopen file [%s].", filepath);
 	}
@@ -871,8 +870,9 @@ s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
 	va_list args;
 	
 	va_start(args, fmt);
-	vsprintf(
+	vsnprintf(
 		buffer,
+		ArrayCount(buffer),
 		fmt,
 		args
 	);
@@ -988,6 +988,8 @@ s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
 s32 MemFile_SaveFile(MemFile* memFile, char* filepath) {
 	FILE* file = fopen(filepath, "wb");
 	
+	printf_debugExt_align("Save", "%s", filepath);
+	
 	if (file == NULL) {
 		printf_warning("Failed to fopen file [%s] for writing.", filepath);
 		
@@ -1002,6 +1004,8 @@ s32 MemFile_SaveFile(MemFile* memFile, char* filepath) {
 
 s32 MemFile_SaveFile_String(MemFile* memFile, char* filepath) {
 	FILE* file = fopen(filepath, "w");
+	
+	printf_debugExt_align("Save String", "%s", filepath);
 	
 	if (file == NULL) {
 		printf_warning("Failed to fopen file [%s] for writing.", filepath);
@@ -1304,27 +1308,23 @@ void String_GetSlashAndPoint(char* src, s32* slash, s32* point) {
 }
 
 char* String_GetPath(char* src) {
-	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
-	static char* buffer[__EXT_STR_MAX];
+	static char buffer[32][256 * 4];
 	static s32 index;
 	s32 point = 0;
 	s32 slash = 0;
-	char* ret;
 	
 	String_GetSlashAndPoint(src, &slash, &point);
+	
+	index++;
+	index = index % 32;
 	
 	if (slash == 0)
 		slash = -1;
 	
-	if (__EXT_BUFFER(0) != NULL)
-		__EXT_BUFFER(0) = Lib_Free(__EXT_BUFFER(0));
-	__EXT_BUFFER(0) = Lib_Calloc(0, slash + 0x10);
-	memset(__EXT_BUFFER(0), 0, slash + 2);
-	memcpy(__EXT_BUFFER(0), src, slash + 1);
-	ret = __EXT_BUFFER(0);
-	index = Wrap(index + 1, 0, __EXT_STR_MAX - 1);
+	memset(buffer[index], 0, slash + 2);
+	memcpy(buffer[index], src, slash + 1);
 	
-	return ret;
+	return buffer[index];
 }
 
 char* String_GetBasename(char* src) {

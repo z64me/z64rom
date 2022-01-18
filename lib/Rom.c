@@ -234,6 +234,11 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	
 	Dir_Enter("soundfont/");
 	for (s32 i = 0; i < num; i++) {
+		#if 0
+			if (i == 36)
+				i = 0;
+		#endif
+		
 		printf_progress("SoundFont", i + 1, num);
 		
 		entry = &head->entries[i];
@@ -263,7 +268,7 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				char* output = Dir_File("%d-Inst.cfg", j);
 				
 				if (gPrintfSuppress == PSL_DEBUG)
-					printf_progress("sfx", j + 1, entry->numInst);
+					printf_progress("inst", j + 1, entry->numInst);
 				
 				if (bank->instruments[j] == 0)
 					continue;
@@ -318,6 +323,7 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				}
 				
 				drum = SegmentedToVirtual(0x1, ReadBE(wow[j]));
+				
 				if (drum->sound.sample == 0) {
 					continue;
 				}
