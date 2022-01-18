@@ -80,7 +80,6 @@ void Dir_Enter(char* fmt, ...) {
 	
 	if (!(sDirParam & DIR__MAKE_ON_ENTER)) {
 		if (!Dir_Stat(buffer)) {
-			printf_warning("%08X", sDirParam);
 			printf_error("Could not enter folder [%s%s]", sCurrentPath, buffer);
 		}
 	}
@@ -183,12 +182,12 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 				if (entry->d_name[0] == '.')
 					continue;
 				itemList->num++;
-				bufSize += strlen(sCurrentPath) + strlen(entry->d_name) + 2;
+				bufSize += strlen(entry->d_name) + 2;
 			}
 		} else {
 			if (!__isDir(Dir_File(entry->d_name))) {
 				itemList->num++;
-				bufSize += strlen(sCurrentPath) + strlen(entry->d_name) + 2;
+				bufSize += strlen(entry->d_name) + 2;
 			}
 		}
 	}
@@ -204,13 +203,13 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 				if (__isDir(Dir_File(entry->d_name))) {
 					if (entry->d_name[0] == '.')
 						continue;
-					String_Copy(&itemList->buffer[itemList->writePoint], tprintf("%s%s/", sCurrentPath, entry->d_name));
+					String_Copy(&itemList->buffer[itemList->writePoint], tprintf("%s/", entry->d_name));
 					itemList->item[i++] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i - 1]) + 1;
 				}
 			} else {
 				if (!__isDir(Dir_File(entry->d_name))) {
-					String_Copy(&itemList->buffer[itemList->writePoint], tprintf("%s%s/", sCurrentPath, entry->d_name));
+					String_Copy(&itemList->buffer[itemList->writePoint], tprintf("%s", entry->d_name));
 					itemList->item[i++] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i - 1]) + 1;
 				}
@@ -818,8 +817,43 @@ MemFile MemFile_Initialize() {
 	return (MemFile) { 0 };
 }
 
+void MemFile_Params(MemFile* memFile, ...) {
+	va_list args;
+	MemInit cmd;
+	u32 arg;
+	
+	va_start(args, memFile);
+	for (;;) {
+		cmd = va_arg(args, MemInit);
+		
+		if (arg == MFP_END) {
+			break;
+		}
+		
+		arg = va_arg(args, u32);
+		
+		switch (cmd) {
+			case MFP_ALIGN: {
+				memFile->param.align = arg;
+				break;
+			}
+			case MFP_REALLOC: {
+				memFile->param.realloc = arg;
+				break;
+			}
+			case MFP_END: {
+				va_end(args);
+				
+				return;
+				break;
+			}
+		}
+	}
+	va_end(args);
+}
+
 void MemFile_Malloc(MemFile* memFile, u32 size) {
-	memset(memFile, 0, sizeof(struct MemFile));
+	*memFile = MemFile_Initialize();
 	memFile->data = malloc(size);
 	memset(memFile->data, 0, size);
 	
@@ -857,15 +891,64 @@ void MemFile_Rewind(MemFile* memFile) {
 
 s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 	if (dest->seekPoint + size > dest->memSize) {
-		printf_warning("DataSize exceeded MemSize while writing to MemFile.\n\tDataSize: [0x%X]\n\tMemSize: [0x%X]", dest->dataSize, dest->memSize);
+		if (!dest->param.realloc) {
+			printf_warning_align(
+				"MemSize exceeded",
+				"%fkB / %fkB",
+				BinToKb(dest->dataSize),
+				BinToKb(dest->memSize)
+			);
+			
+			return 1;
+		}
 		
-		return 1;
+		MemFile_Realloc(dest, dest->memSize * 2);
+		
+		return 0;
 	}
+	
 	if (dest->seekPoint + size > dest->dataSize) {
 		dest->dataSize = dest->seekPoint + size;
 	}
 	memcpy(&dest->cast.u8[dest->seekPoint], src, size);
 	dest->seekPoint += size;
+	
+	if (dest->param.align) {
+		if (dest->seekPoint % dest->param.align)
+			dest->seekPoint += dest->param.align - (dest->seekPoint % dest->param.align);
+	}
+	
+	return 0;
+}
+
+s32 MemFile_Append(MemFile* dest, MemFile* src) {
+	if (dest->seekPoint + src->dataSize > dest->memSize) {
+		if (!dest->param.realloc) {
+			printf_warning_align(
+				"MemSize exceeded",
+				"%fkB / %fkB",
+				BinToKb(dest->dataSize),
+				BinToKb(dest->memSize)
+			);
+			
+			return 1;
+		}
+		
+		MemFile_Realloc(dest, dest->memSize * 2);
+		
+		return 0;
+	}
+	
+	if (dest->seekPoint + src->dataSize > dest->dataSize) {
+		dest->dataSize = dest->seekPoint + src->dataSize;
+	}
+	memcpy(&dest->cast.u8[dest->seekPoint], src->data, src->dataSize);
+	dest->seekPoint += src->dataSize;
+	
+	if (dest->param.align) {
+		if (dest->seekPoint % dest->param.align)
+			dest->seekPoint += dest->param.align - (dest->seekPoint % dest->param.align);
+	}
 	
 	return 0;
 }
@@ -1256,6 +1339,30 @@ char* String_GetFilename(char* src) {
 	
 	memcpy(buffer[index], &src[slash], point - slash + ext);
 	buffer[index][point - slash + ext] = '\0';
+	
+	return buffer[index];
+}
+
+char* String_GetFolder(char* src) {
+	static char buffer[32][512];
+	static s32 index;
+	s32 point = 0;
+	s32 slashEnd = 0;
+	s32 slashStart = 0;
+	s32 ext = 0;
+	
+	index++;
+	index = index % 32;
+	
+	__GetSlashAndPoint(src, &slashEnd, &point);
+	
+	slashStart = slashEnd - 1;
+	
+	while (src[slashStart - 1] != '/')
+		slashStart--;
+	
+	memcpy(buffer[index], &src[slashStart], slashEnd - slashStart);
+	buffer[index][slashEnd - slashStart] = '\0';
 	
 	return buffer[index];
 }

@@ -1,17 +1,17 @@
 #include "z64rom.h"
 
 RomFile Rom_GetRomFile(Rom* rom, u32 vromA, u32 vromB) {
-	DmaEntry* dmaTable = rom->dmaTable;
+	DmaEntry* dmaTable = rom->table.dma;
 	s32 i;
 	RomFile romFile;
 	u32 useAddress = false;
 	
-	for (i = 0; i < rom->addr.tblNum.dma; i++) {
+	for (i = 0; i < rom->table.num.dma; i++) {
 		if (dmaTable[i].vromStart == vromA &&
 			dmaTable[i].vromEnd == vromB) {
 			break;
 		}
-		if (i + 1 == rom->addr.tblNum.dma) {
+		if (i + 1 == rom->table.num.dma) {
 			printf_debugExt_align("DmaEntry", "Could not find");
 			printf_debug("%08X - %08X", ReadBE(vromA), ReadBE(vromB));
 			useAddress = true;
@@ -44,8 +44,32 @@ RomFile Rom_GetRomFile(Rom* rom, u32 vromA, u32 vromB) {
 		return Rom_GetRomFile(rom, entry->vromStart, entry->vromEnd); \
 	}
 
-RomFile Dma_RomFile_Func(ObjectEntry, objectTable, Object);
-RomFile Dma_RomFile_Func(ActorEntry, actorTable, Actor);
-RomFile Dma_RomFile_Func(DmaEntry, dmaTable, DmaEntry);
-RomFile Dma_RomFile_Func(GameStateEntry, stateTable, GameState);
-RomFile Dma_RomFile_Func(SceneEntry, sceneTable, Scene);
+RomFile Dma_RomFile_Func(ObjectEntry, table.object, Object);
+RomFile Dma_RomFile_Func(ActorEntry, table.actor, Actor);
+RomFile Dma_RomFile_Func(DmaEntry, table.dma, DmaEntry);
+RomFile Dma_RomFile_Func(GameStateEntry, table.state, GameState);
+RomFile Dma_RomFile_Func(SceneEntry, table.scene, Scene);
+
+void Dma_SetFlag(u64* flag, s32 id) {
+	u32 shift = id % 64;
+	u32 ar = (id - shift) / 64;
+	
+	flag[ar] |= 1 << shift;
+}
+
+void Dma_ClearFlag(u64* flag, s32 id) {
+	u32 shift = id % 64;
+	u32 ar = (id - shift) / 64;
+	
+	flag[ar] &= ~(1 << shift);
+}
+
+s32 Dma_GetFlag(u64* flag, s32 id) {
+	u32 shift = id % 64;
+	u32 ar = (id - shift) / 64;
+	
+	return ((flag[ar] & (1 << shift)) != 0);
+}
+
+void Dma_WriteEntry(Rom* rom, MemFile* memFile) {
+}

@@ -1,12 +1,5 @@
 #include "z64rom.h"
 
-char sBankFiles[1024 * 5][512];
-s32 sBankNum;
-SampleInfo sUnsortedSampleTbl[1024 * 5];
-SampleInfo* sSortedSampleTbl[1024 * 5];
-s32 sDumpID;
-s32 sSortID;
-
 static s32 Rom_Extract(MemFile* mem, RomFile rom, char* name) {
 	if (rom.size == 0)
 		return 0;
@@ -18,6 +11,8 @@ static s32 Rom_Extract(MemFile* mem, RomFile rom, char* name) {
 	
 	return 1;
 }
+
+/* / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / */
 
 static void Rom_Config_Actor(MemFile* config, ActorEntry* actorOvl, const char* name, char* out) {
 	MemFile_Clear(config);
@@ -45,20 +40,20 @@ static void Rom_Config_Player(Rom* rom, MemFile* config, KaleidoEntry* player, c
 	u32 updt;
 	u32 draw;
 	
-	dataHi = SegmentedToVirtual(0x0, rom->addr.table.player.init.hi);
-	dataLo = SegmentedToVirtual(0x0, rom->addr.table.player.init.lo);
+	dataHi = SegmentedToVirtual(0x0, rom->offset.table.player.init.hi);
+	dataLo = SegmentedToVirtual(0x0, rom->offset.table.player.init.lo);
 	init = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
 	
-	dataHi = SegmentedToVirtual(0x0, rom->addr.table.player.dest.hi);
-	dataLo = SegmentedToVirtual(0x0, rom->addr.table.player.dest.lo);
+	dataHi = SegmentedToVirtual(0x0, rom->offset.table.player.dest.hi);
+	dataLo = SegmentedToVirtual(0x0, rom->offset.table.player.dest.lo);
 	dest = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
 	
-	dataHi = SegmentedToVirtual(0x0, rom->addr.table.player.updt.hi);
-	dataLo = SegmentedToVirtual(0x0, rom->addr.table.player.updt.lo);
+	dataHi = SegmentedToVirtual(0x0, rom->offset.table.player.updt.hi);
+	dataLo = SegmentedToVirtual(0x0, rom->offset.table.player.updt.lo);
 	updt = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
 	
-	dataHi = SegmentedToVirtual(0x0, rom->addr.table.player.draw.hi);
-	dataLo = SegmentedToVirtual(0x0, rom->addr.table.player.draw.lo);
+	dataHi = SegmentedToVirtual(0x0, rom->offset.table.player.draw.hi);
+	dataLo = SegmentedToVirtual(0x0, rom->offset.table.player.draw.lo);
 	draw = ReadBE(dataHi[1]) << 16 | ReadBE(dataLo[1]);
 	
 	MemFile_Clear(config);
@@ -80,13 +75,22 @@ static void Rom_Config_Scene(MemFile* config, SceneEntry* sceneEntry, const char
 	MemFile_SaveFile_String(config, out);
 }
 
+/* / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / */
+
+char sBankFiles[1024 * 5][512];
+s32 sBankNum;
+SampleInfo sUnsortedSampleTbl[1024 * 5];
+SampleInfo* sSortedSampleTbl[1024 * 5];
+s32 sDumpID;
+s32 sSortID;
+
 #define __Config_Sample(wow, sampletype) \
-	Config_WriteVar_Hex(# wow "_sample", ReadBE(sample->sampleAddr) + rom->addr.segment.smplRom + off); \
+	Config_WriteVar_Hex(# wow "_sample", ReadBE(sample->sampleAddr) + rom->offset.segment.smplRom + off); \
 	Config_WriteVar_Flo(# wow "_tuning", *f); \
 	if (sBankNum < 0) { printf("\a\n"); exit(1); /* "go intentionally bonkers" */ } \
 	sUnsortedSampleTbl[sDumpID].tuning = *f; \
 	sUnsortedSampleTbl[sDumpID].data = sample->data; \
-	sUnsortedSampleTbl[sDumpID].sampleAddr = ReadBE(sample->sampleAddr) + rom->addr.segment.smplRom + off; \
+	sUnsortedSampleTbl[sDumpID].sampleAddr = ReadBE(sample->sampleAddr) + rom->offset.segment.smplRom + off; \
 	sUnsortedSampleTbl[sDumpID].loop = VirtualToSegmented(0x0, SegmentedToVirtual(0x1, ReadBE(sample->loop))); \
 	sUnsortedSampleTbl[sDumpID++].book = VirtualToSegmented(0x0, SegmentedToVirtual(0x1, ReadBE(sample->book))); \
 	Assert(sDumpID < 1024 * 5);
@@ -221,9 +225,11 @@ static void Rom_Config_Sample(Rom* rom, MemFile* config, Sample* sample, char* n
 	MemFile_SaveFile_String(config, out);
 }
 
+/* / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / */
+
 static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
-	AudioEntryHead* head = SegmentedToVirtual(0, rom->addr.table.fontTable);
-	AudioEntryHead* sampHead = SegmentedToVirtual(0, rom->addr.table.sampleTable);
+	AudioEntryHead* head = SegmentedToVirtual(0, rom->offset.table.fontTable);
+	AudioEntryHead* sampHead = SegmentedToVirtual(0, rom->offset.table.sampleTable);
 	SoundFontEntry* entry;
 	u32 num = ReadBE(head->numEntries);
 	SoundFont* bank;
@@ -244,11 +250,11 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			printf_debug_align("numInst", "%d", ReadBE(entry->numInst));
 			printf_debug_align("numSfx", "%d", ReadBE(entry->numSfx));
 			printf_debug_align("numDrum", "%d", ReadBE(entry->numDrum));
-			printf_debug_align("bank", "%08X", ReadBE(entry->romAddr) + rom->addr.segment.fontRom);
+			printf_debug_align("bank", "%08X", ReadBE(entry->romAddr) + rom->offset.segment.fontRom);
 			printf_debug_align("size", "%08X", ReadBE(entry->size));
 		#endif
 		
-		bank = SegmentedToVirtual(0x0, ReadBE(entry->romAddr) + rom->addr.segment.fontRom);
+		bank = SegmentedToVirtual(0x0, ReadBE(entry->romAddr) + rom->offset.segment.fontRom);
 		off = ReadBE(sampHead->entries[entry->audioTable1].romAddr);
 		if (off & 0xF) {
 			printf_warning("audioTable Segment %08X id %d", off, entry->audioTable1);
@@ -352,20 +358,20 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 }
 
 static void Rom_Dump_Sequences(Rom* rom, MemFile* dataFile, MemFile* config) {
-	AudioEntryHead* head = SegmentedToVirtual(0x0, rom->addr.table.seqTable);
+	AudioEntryHead* head = SegmentedToVirtual(0x0, rom->offset.table.seqTable);
 	u16* seqFontTable;
 	SoundFontEntry* entry;
 	RomFile romFile;
 	u32 num = ReadBE(head->numEntries);
 	
-	Dir_Enter("sequences/");
-	SetSegment(0x1, SegmentedToVirtual(0x0, rom->addr.table.seqFontTbl));
+	Dir_Enter("sequence/");
+	SetSegment(0x1, SegmentedToVirtual(0x0, rom->offset.table.seqFontTbl));
 	
 	MemFile_Clear(config);
 	for (s32 i = 0; i < num; i++) {
-		seqFontTable = SegmentedToVirtual(0x0, rom->addr.table.seqFontTbl);
+		seqFontTable = SegmentedToVirtual(0x0, rom->offset.table.seqFontTbl);
 		entry = &head->entries[i];
-		romFile.data = SegmentedToVirtual(0x0, ReadBE(entry->romAddr) + rom->addr.segment.seqRom);
+		romFile.data = SegmentedToVirtual(0x0, ReadBE(entry->romAddr) + rom->offset.segment.seqRom);
 		romFile.size = ReadBE(entry->size);
 		
 		if (romFile.size == 0)
@@ -420,23 +426,21 @@ static void Rom_Dump_Samples_PatchWavFiles(MemFile* dataFile, MemFile* config) {
 		{ NOTE(2, 3), 0, &gSampleInfo[433] }, // Cajon
 	};
 	
-	Dir_Enter("samples/"); {
-		for (s32 i = 0; i < ArrayCount(info); i++) {
-			printf_progress("Update Sample", i + 1, ArrayCount(info));
-			char* file = Dir_File("%s/Sample.wav", info[i].info->name);
-			
-			MemFile_Clear(dataFile);
-			MemFile_LoadFile(dataFile, file);
-			instInfo = Lib_MemMem(dataFile->data, dataFile->dataSize, "inst", 4);
-			smplInfo = Lib_MemMem(dataFile->data, dataFile->dataSize, "smpl", 4);
-			
-			/* basenote */ instInfo[8] = info[i].basenote;
-			/* finetune */ instInfo[9] = info[i].finetune;
-			/* basenote */ smplInfo[5] = info[i].basenote;
-			/* finetune */ smplInfo[6] = info[i].finetune;
-			MemFile_SaveFile(dataFile, file);
-		}
-	} Dir_Leave();
+	for (s32 i = 0; i < ArrayCount(info); i++) {
+		printf_progress("Update Sample", i + 1, ArrayCount(info));
+		char* file = Dir_File("%s/Sample.wav", info[i].info->name);
+		
+		MemFile_Clear(dataFile);
+		MemFile_LoadFile(dataFile, file);
+		instInfo = Lib_MemMem(dataFile->data, dataFile->dataSize, "inst", 4);
+		smplInfo = Lib_MemMem(dataFile->data, dataFile->dataSize, "smpl", 4);
+		
+		/* basenote */ instInfo[8] = info[i].basenote;
+		/* finetune */ instInfo[9] = info[i].finetune;
+		/* basenote */ smplInfo[5] = info[i].basenote;
+		/* finetune */ smplInfo[6] = info[i].finetune;
+		MemFile_SaveFile(dataFile, file);
+	}
 	#undef NOTE
 }
 
@@ -483,7 +487,7 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 	
 	tbl = sSortedSampleTbl;
 	
-	Dir_Enter("samples/"); {
+	Dir_Enter("sample/"); {
 		for (s32 i = 0; i < sSortID; i++) {
 			printf_progress("Sample", i + 1, sSortID);
 			name = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].name : gSampleInfo[i].dublicate->name;
@@ -575,72 +579,72 @@ static void Rom_Dump_Samples(Rom* rom, MemFile* dataFile, MemFile* config) {
 				}
 			} Dir_Leave();
 		}
-	} Dir_Leave();
-	
-	for (s32 j = 0; j < sBankNum; j++) {
-		char* replacedName = NULL;
-		printf_progress("Update SoundFont", j + 1, sBankNum);
 		
-		MemFile_Clear(config);
-		MemFile_LoadFile_String(config, sBankFiles[j]);
-		for (s32 i = 0; i < sSortID; i++) {
-			name = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].name : gSampleInfo[i].dublicate->name;
-			sprintf(buff, "0x%X", sSortedSampleTbl[i]->sampleAddr);
-			if (String_Replace(config->data, buff, name)) {
-				replacedName = name;
+		for (s32 j = 0; j < sBankNum; j++) {
+			char* replacedName = NULL;
+			printf_progress("Update SoundFont", j + 1, sBankNum);
+			
+			MemFile_Clear(config);
+			MemFile_LoadFile_String(config, sBankFiles[j]);
+			for (s32 i = 0; i < sSortID; i++) {
+				name = gSampleInfo[i].dublicate == NULL ? gSampleInfo[i].name : gSampleInfo[i].dublicate->name;
+				sprintf(buff, "0x%X", sSortedSampleTbl[i]->sampleAddr);
+				if (String_Replace(config->data, buff, name)) {
+					replacedName = name;
+				}
+			}
+			
+			config->dataSize = strlen(config->data);
+			MemFile_SaveFile_String(config, sBankFiles[j]);
+			
+			// Rename SFX To their samples
+			if (String_MemMem(sBankFiles[j], "-Sfx")) {
+				char* tempName = tprintf("%s%d-%s.cfg", String_GetPath(sBankFiles[j]), String_GetInt(String_GetBasename(sBankFiles[j])), replacedName);
+				printf_debug_align(
+					"Rename",
+					"[%s] -> [%s]",
+					sBankFiles[j],
+					tempName
+				);
+				renamer_remove(sBankFiles[j], tempName);
+			}
+			
+			// Rename Inst to their primary sample
+			if ((String_MemMem(sBankFiles[j], "-Inst") || String_MemMem(sBankFiles[j], "-Drum")) && (String_MemMem(config->data, "Inst_") || String_MemMem(config->data, "Perc_"))) {
+				char instName[256] = { 0 };
+				char* tempName;
+				
+				String_Copy(instName, Config_GetString(config, "prim_sample"));
+				String_Remove(instName, strlen("Inst_"));
+				String_Replace(instName, "_Prim", "");
+				String_Replace(instName, "Soft", "");
+				String_Replace(instName, "Hard", "");
+				String_Replace(instName, "Mute", "");
+				String_Replace(instName, "Open", "");
+				String_Replace(instName, "_Hi", "Var");
+				
+				if (instName[0] == 0)
+					printf_error("String maniplation failed for instrument");
+				
+				tempName = tprintf("%s%d-%s.cfg", String_GetPath(sBankFiles[j]), String_GetInt(String_GetBasename(sBankFiles[j])), instName);
+				
+				printf_debug_align(
+					"Rename",
+					"[%s] -> [%s]",
+					sBankFiles[j],
+					tempName
+				);
+				renamer_remove(sBankFiles[j], tempName);
 			}
 		}
 		
-		config->dataSize = strlen(config->data);
-		MemFile_SaveFile_String(config, sBankFiles[j]);
-		
-		// Rename SFX To their samples
-		if (String_MemMem(sBankFiles[j], "-Sfx")) {
-			char* tempName = tprintf("%s%d-%s.cfg", String_GetPath(sBankFiles[j]), String_GetInt(String_GetBasename(sBankFiles[j])), replacedName);
-			printf_debug_align(
-				"Rename",
-				"[%s] -> [%s]",
-				sBankFiles[j],
-				tempName
-			);
-			renamer_remove(sBankFiles[j], tempName);
-		}
-		
-		// Rename Inst to their primary sample
-		if ((String_MemMem(sBankFiles[j], "-Inst") || String_MemMem(sBankFiles[j], "-Drum")) && (String_MemMem(config->data, "Inst_") || String_MemMem(config->data, "Perc_"))) {
-			char instName[256] = { 0 };
-			char* tempName;
-			
-			String_Copy(instName, Config_GetString(config, "prim_sample"));
-			String_Remove(instName, strlen("Inst_"));
-			String_Replace(instName, "_Prim", "");
-			String_Replace(instName, "Soft", "");
-			String_Replace(instName, "Hard", "");
-			String_Replace(instName, "Mute", "");
-			String_Replace(instName, "Open", "");
-			String_Replace(instName, "_Hi", "Var");
-			
-			if (instName[0] == 0)
-				printf_error("String maniplation failed for instrument");
-			
-			tempName = tprintf("%s%d-%s.cfg", String_GetPath(sBankFiles[j]), String_GetInt(String_GetBasename(sBankFiles[j])), instName);
-			
-			printf_debug_align(
-				"Rename",
-				"[%s] -> [%s]",
-				sBankFiles[j],
-				tempName
-			);
-			renamer_remove(sBankFiles[j], tempName);
-		}
-	}
-	
-	Rom_Dump_Samples_PatchWavFiles(dataFile, config);
+		Rom_Dump_Samples_PatchWavFiles(dataFile, config);
+	} Dir_Leave();
 }
 
 void Rom_Dump(Rom* rom) {
-	MemFile dataFile;
-	MemFile config;
+	MemFile dataFile = MemFile_Initialize();
+	MemFile config = MemFile_Initialize();
 	RomFile rf;
 	
 	Dir_SetParam(DIR__MAKE_ON_ENTER);
@@ -651,28 +655,28 @@ void Rom_Dump(Rom* rom) {
 	Dir_Enter("rom/");
 	#if 1
 		Dir_Enter("actor/"); {
-			for (s32 i = 0; i < rom->addr.tblNum.actor; i++) {
+			for (s32 i = 0; i < rom->table.num.actor; i++) {
 				rf = Dma_RomFile_Actor(rom, i);
 				
 				if (rf.size == 0)
 					continue;
 				
-				printf_progress("Actor", i + 1, rom->addr.tblNum.actor);
+				printf_progress("Actor", i + 1, rom->table.num.actor);
 				Dir_Enter("0x%04X-%s/", i, gActorName[i]); {
 					if (Rom_Extract(&dataFile, rf, Dir_File("actor.zovl")))
-						Rom_Config_Actor(&config, &rom->actorTable[i], gActorName[i], Dir_File("config.cfg"));
+						Rom_Config_Actor(&config, &rom->table.actor[i], gActorName[i], Dir_File("config.cfg"));
 				} Dir_Leave();
 			}
 		} Dir_Leave();
 		
 		Dir_Enter("object/"); {
-			for (s32 i = 0; i < rom->addr.tblNum.obj; i++) {
+			for (s32 i = 0; i < rom->table.num.obj; i++) {
 				rf = Dma_RomFile_Object(rom, i);
 				
 				if (rf.size == 0)
 					continue;
 				
-				printf_progress("Object", i + 1, rom->addr.tblNum.obj);
+				printf_progress("Object", i + 1, rom->table.num.obj);
 				Dir_Enter("0x%04X-%s/", i, gObjectName[i]); {
 					Rom_Extract(&dataFile, rf, Dir_File("object.zobj"));
 				} Dir_Leave();
@@ -680,37 +684,37 @@ void Rom_Dump(Rom* rom) {
 		} Dir_Leave();
 		
 		Dir_Enter("system/"); {
-			for (s32 i = 0; i < rom->addr.tblNum.state; i++) {
+			for (s32 i = 0; i < rom->table.num.state; i++) {
 				rf = Dma_RomFile_GameState(rom, i);
 				
 				if (rf.size == 0)
 					continue;
 				
-				printf_progress("System", i + 1, rom->addr.tblNum.state);
+				printf_progress("System", i + 1, rom->table.num.state);
 				Dir_Enter("GameState_%s/", gStateName[i]); {
 					if (Rom_Extract(&dataFile, rf, Dir_File("state.zovl")))
-						Rom_Config_GameState(&config, &rom->stateTable[i], gStateName[i], Dir_File("config.cfg"));
+						Rom_Config_GameState(&config, &rom->table.state[i], gStateName[i], Dir_File("config.cfg"));
 				} Dir_Leave();
 			}
 			
 			printf_info("Player");
 			Dir_Enter("Player/"); {
-				rf.size = ReadBE(rom->kaleidoTable[1].vromEnd) - ReadBE(rom->kaleidoTable[1].vromStart);
-				rf.data = SegmentedToVirtual(0x0, ReadBE(rom->kaleidoTable[1].vromStart));
+				rf.size = ReadBE(rom->table.kaleido[1].vromEnd) - ReadBE(rom->table.kaleido[1].vromStart);
+				rf.data = SegmentedToVirtual(0x0, ReadBE(rom->table.kaleido[1].vromStart));
 				
 				Rom_Extract(&dataFile, rf, Dir_File("EnPlayer.zovl"));
-				Rom_Config_Player(rom, &config, &rom->kaleidoTable[1], "Player", Dir_File("config.cfg"));
+				Rom_Config_Player(rom, &config, &rom->table.kaleido[1], "Player", Dir_File("config.cfg"));
 			} Dir_Leave();
 		} Dir_Leave();
 		
 		Dir_Enter("scene/"); {
-			for (s32 i = 0; i < rom->addr.tblNum.scene; i++) {
+			for (s32 i = 0; i < rom->table.num.scene; i++) {
 				rf = Dma_RomFile_Scene(rom, i);
 				
 				if (rf.size == 0)
 					continue;
 				
-				printf_progress("Scene", i + 1, rom->addr.tblNum.scene);
+				printf_progress("Scene", i + 1, rom->table.num.scene);
 				Dir_Enter("0x%02X-%s/", i, gSceneName[i]); {
 					if (Rom_Extract(&dataFile, rf, Dir_File("scene.zscene"))) {
 						u32* seg;
@@ -718,7 +722,7 @@ void Rom_Dump(Rom* rom) {
 						u32 roomListSeg;
 						u32* vromSeg;
 						
-						Rom_Config_Scene(&config, &rom->sceneTable[i], gSceneName[i], Dir_File("config.cfg"));
+						Rom_Config_Scene(&config, &rom->table.scene[i], gSceneName[i], Dir_File("config.cfg"));
 						SetSegment(0x2, rf.data);
 						seg = dataFile.data;
 						
@@ -769,70 +773,136 @@ void Rom_Dump(Rom* rom) {
 	MemFile_Free(&config);
 }
 
+/* / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / */
+
+struct {
+	char name[32];
+	u32  segment;
+} sSampleTbl[1024 * 5];
+s32 sSampleTblNum;
+
 static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
-	ItemList instList;
-	ItemList sfxList;
-	ItemList drumList;
+	ItemList itemList;
 	
+	Dir_ItemList(&itemList, true);
+	
+	for (s32 i = 0; i < itemList.num; i++) {
+		Dir_Enter(itemList.item[i]); {
+			ItemList instList;
+			ItemList sfxList;
+			ItemList drumList;
+			
+			MemFile_Clear(config);
+			MemFile_Clear(dataFile);
+			
+			if (Dir_Stat("instruments/")) {
+				Dir_Enter("instruments/");
+				Dir_ItemList(&instList, false);
+				Dir_Leave();
+			}
+			
+			if (Dir_Stat("sfx/")) {
+				Dir_Enter("sfx/");
+				Dir_ItemList(&sfxList, false);
+				Dir_Leave();
+			}
+			
+			if (Dir_Stat("drums/")) {
+				Dir_Enter("drums/");
+				Dir_ItemList(&drumList, false);
+				Dir_Leave();
+			}
+			
+			printf_debugExt_align("Bank", "%s", Dir_Current());
+			printf_debug_align("Instruments", "%d", instList.num);
+			printf_debug_align("Sfx", "%d", sfxList.num);
+			printf_debug_align("Drums", "%d", drumList.num);
+			
+			ItemList_Free(&instList);
+			ItemList_Free(&sfxList);
+			ItemList_Free(&drumList);
+		} Dir_Leave();
+	}
+	
+	ItemList_Free(&itemList);
+}
+
+static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) {
+	ItemList itemList;
+	MemFile sample = MemFile_Initialize();
+	char* statList[] = {
+		"vadpcm.bin",
+		"RawSound.bin",
+		"sample.bin",
+	};
+	
+	MemFile_Malloc(&sample, MbToBin(0.25));
 	MemFile_Clear(config);
 	MemFile_Clear(dataFile);
+	Dir_ItemList(&itemList, true);
+	MemFile_Params(dataFile, MFP_ALIGN, 16, MFP_END);
 	
-	if (Dir_Stat("instruments/")) {
-		Dir_Enter("instruments/");
-		Dir_ItemList(&instList, false);
-		Dir_Leave();
+	for (s32 i = 0; i < itemList.num; i++) {
+		Dir_Enter(itemList.item[i]); {
+			s32 fileId = 0;
+			char* file;
+			
+			printf_progress("Append Sample", i + 1, itemList.num);
+			
+			for (;;) {
+				if (Dir_Stat(statList[fileId])) {
+					break;
+				}
+				
+				if (fileId >= ArrayCount(statList)) {
+					printf_error_align("Could not locate sample in", "%s", Dir_Current());
+				}
+				
+				fileId++;
+			}
+			
+			file = Dir_File("%s", statList[fileId]);
+			
+			if (MemFile_LoadFile(&sample, file))
+				printf_error_align("Failed to load file", "%s", file);
+			
+			Config_WriteVar_Hex(String_GetFolder(file), dataFile->seekPoint);
+			sSampleTbl[sSampleTblNum].segment = dataFile->seekPoint;
+			String_Copy(sSampleTbl[sSampleTblNum++].name, String_GetFolder(file));
+			MemFile_Append(dataFile, &sample);
+		} Dir_Leave();
 	}
 	
-	if (Dir_Stat("sfx/")) {
-		Dir_Enter("sfx/");
-		Dir_ItemList(&sfxList, false);
-		Dir_Leave();
-	}
-	
-	if (Dir_Stat("drums/")) {
-		Dir_Enter("drums/");
-		Dir_ItemList(&drumList, false);
-		Dir_Leave();
-	}
-	
-	printf_debugExt_align("Bank", "%s", Dir_Current());
-	printf_debug_align("Instruments", "%d", instList.num);
-	printf_debug_align("Sfx", "%d", sfxList.num);
-	printf_debug_align("Drums", "%d", drumList.num);
-	
-	ItemList_Free(&instList);
-	ItemList_Free(&sfxList);
-	ItemList_Free(&drumList);
+	MemFile_SaveFile(dataFile, Dir_File("SampleTable.bin"));
+	MemFile_SaveFile(config, Dir_File("SampleTable.cfg"));
+	ItemList_Free(&itemList);
+	MemFile_Free(&sample);
 }
 
 void Rom_Build(Rom* rom) {
-	MemFile dataFile;
-	MemFile config;
-	ItemList itemList;
+	MemFile dataFile = MemFile_Initialize();
+	MemFile config = MemFile_Initialize();
 	
 	MemFile_Malloc(&dataFile, 0x460000);
 	MemFile_Malloc(&config, 0x25000);
 	
 	Dir_Enter("rom/"); {
 		Dir_Enter("sound/"); {
+			Dir_Enter("sample/"); {
+				Rom_Build_SampleTable(rom, &dataFile, &config);
+			} Dir_Leave();
+			
 			Dir_Enter("soundfont/"); {
-				Dir_ItemList(&itemList, true);
-				
-				for (s32 i = 0; i < itemList.num; i++) {
-					Dir_Enter(itemList.item[i]); {
-						Rom_Build_SoundFont(rom, &dataFile, &config);
-					} Dir_Leave();
-				}
-				
-				ItemList_Free(&itemList);
+				// Rom_Build_SoundFont(rom, &dataFile, &config);
 			} Dir_Leave();
 		} Dir_Leave();
 	} Dir_Leave();
 }
 
+/* / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / */
+
 void Rom_New(Rom* rom, char* romName) {
 	u32* hdr;
-	u32 debug = 0;
 	
 	if (MemFile_LoadFile(&rom->file, romName)) {
 		printf_error_align("Load Rom", "%s", romName);
@@ -853,107 +923,111 @@ void Rom_New(Rom* rom, char* romName) {
 	
 	if (hdr[0] != 0) {
 		u16* addr;
-		debug++;
-		rom->addr.table.dmaTable = 0x012F70;
-		rom->addr.table.objTable = 0xB9E6C8;
-		rom->addr.table.actorTable = 0xB8D440;
-		rom->addr.table.stateTable = 0xB969D0;
-		rom->addr.table.sceneTable = 0xBA0BB0;
-		rom->addr.table.kaleidoTable = 0xBA4340;
 		
-		rom->addr.table.seqFontTbl = 0xBCC4E0;
-		rom->addr.table.seqTable = 0xBCC6A0;
-		rom->addr.table.fontTable = 0xBCC270;
-		rom->addr.table.sampleTable = 0xBCCD90;
+		rom->type = Zelda_OoT_Debug;
+		
+		rom->offset.table.dmaTable = 0x012F70;
+		rom->offset.table.objTable = 0xB9E6C8;
+		rom->offset.table.actorTable = 0xB8D440;
+		rom->offset.table.stateTable = 0xB969D0;
+		rom->offset.table.sceneTable = 0xBA0BB0;
+		rom->offset.table.kaleidoTable = 0xBA4340;
+		
+		rom->offset.table.seqFontTbl = 0xBCC4E0;
+		rom->offset.table.seqTable = 0xBCC6A0;
+		rom->offset.table.fontTable = 0xBCC270;
+		rom->offset.table.sampleTable = 0xBCCD90;
 		
 		addr = SegmentedToVirtual(0x0, 0xB5A4AE);
-		rom->addr.segment.seqRom = (ReadBE(addr[0]) - (ReadBE(addr[2]) > 0x7FFF)) << 16;
-		rom->addr.segment.seqRom |= ReadBE(addr[2]);
-		// rom->addr.segment.seqRom = 0x44DF0;
-		printf_debug_align("SequenceRom", "%08X", rom->addr.segment.seqRom);
+		rom->offset.segment.seqRom = (ReadBE(addr[0]) - (ReadBE(addr[2]) > 0x7FFF)) << 16;
+		rom->offset.segment.seqRom |= ReadBE(addr[2]);
+		// rom->offset.segment.seqRom = 0x44DF0;
+		printf_debug_align("SequenceRom", "%08X", rom->offset.segment.seqRom);
 		
 		addr = SegmentedToVirtual(0x0, 0xB5A4C2);
-		rom->addr.segment.fontRom = (ReadBE(addr[0]) - (ReadBE(addr[2]) > 0x7FFF)) << 16;
-		rom->addr.segment.fontRom |= ReadBE(addr[2]);
-		// rom->addr.segment.fontRom = 0x19030;
-		printf_debug_align("FontRom", "%08X", rom->addr.segment.fontRom);
+		rom->offset.segment.fontRom = (ReadBE(addr[0]) - (ReadBE(addr[2]) > 0x7FFF)) << 16;
+		rom->offset.segment.fontRom |= ReadBE(addr[2]);
+		// rom->offset.segment.fontRom = 0x19030;
+		printf_debug_align("FontRom", "%08X", rom->offset.segment.fontRom);
 		
 		addr = SegmentedToVirtual(0x0, 0xB5A4D6);
-		rom->addr.segment.smplRom = (ReadBE(addr[0]) - (ReadBE(addr[2]) > 0x7FFF)) << 16;
-		rom->addr.segment.smplRom |= ReadBE(addr[2]);
-		// rom->addr.segment.smplRom = 0x94870;
-		printf_debug_align("SampleRom", "%08X", rom->addr.segment.smplRom);
+		rom->offset.segment.smplRom = (ReadBE(addr[0]) - (ReadBE(addr[2]) > 0x7FFF)) << 16;
+		rom->offset.segment.smplRom |= ReadBE(addr[2]);
+		// rom->offset.segment.smplRom = 0x94870;
+		printf_debug_align("SampleRom", "%08X", rom->offset.segment.smplRom);
 		
-		rom->addr.tblNum.dma = 1548;
-		rom->addr.tblNum.obj = 402;
-		rom->addr.tblNum.actor = 471;
-		rom->addr.tblNum.state = 6;
-		rom->addr.tblNum.scene = 110;
-		rom->addr.tblNum.kaleido = 2;
+		rom->table.num.dma = 1548;
+		rom->table.num.obj = 402;
+		rom->table.num.actor = 471;
+		rom->table.num.state = 6;
+		rom->table.num.scene = 110;
+		rom->table.num.kaleido = 2;
 		
-		rom->addr.table.player.init = (HiLo) {
+		rom->offset.table.player.init = (HiLo) {
 			0x00B288F8, 0x00B28900
 		};
-		rom->addr.table.player.dest = (HiLo) {
+		rom->offset.table.player.dest = (HiLo) {
 			0x00B28908, 0x00B28914
 		};
-		rom->addr.table.player.updt = (HiLo) {
+		rom->offset.table.player.updt = (HiLo) {
 			0x00B2891C, 0x00B28928
 		};
-		rom->addr.table.player.draw = (HiLo) {
+		rom->offset.table.player.draw = (HiLo) {
 			0x00B28930, 0x00B2893C
 		};
 	} else {
-		rom->addr.table.dmaTable = 0x00007430;
-		rom->addr.table.objTable = 0x00B6EF58;
-		rom->addr.table.actorTable = 0x00B5E490;
-		rom->addr.table.stateTable = 0x00B672A0;
-		rom->addr.table.sceneTable = 0x00B71440;
-		rom->addr.table.kaleidoTable = 0x00B743E0;
+		rom->type = Zelda_OoT_1_0;
 		
-		rom->addr.table.seqFontTbl = 0x00B89910;
+		rom->offset.table.dmaTable = 0x00007430;
+		rom->offset.table.objTable = 0x00B6EF58;
+		rom->offset.table.actorTable = 0x00B5E490;
+		rom->offset.table.stateTable = 0x00B672A0;
+		rom->offset.table.sceneTable = 0x00B71440;
+		rom->offset.table.kaleidoTable = 0x00B743E0;
 		
-		rom->addr.table.seqTable = 0x00B89AD0;
-		rom->addr.table.fontTable = 0x00B896A0;
-		rom->addr.table.sampleTable = 0x00B8A1C0;
+		rom->offset.table.seqFontTbl = 0x00B89910;
 		
-		rom->addr.segment.seqRom = 0x00029DE0;
-		rom->addr.segment.fontRom = 0x0000D390;
-		rom->addr.segment.smplRom = 0x00079470;
+		rom->offset.table.seqTable = 0x00B89AD0;
+		rom->offset.table.fontTable = 0x00B896A0;
+		rom->offset.table.sampleTable = 0x00B8A1C0;
 		
-		rom->addr.tblNum.dma = 1526;
-		rom->addr.tblNum.obj = 402;
-		rom->addr.tblNum.actor = 471;
-		rom->addr.tblNum.state = 6;
-		rom->addr.tblNum.scene = 101;
-		rom->addr.tblNum.kaleido = 2;
+		rom->offset.segment.seqRom = 0x00029DE0;
+		rom->offset.segment.fontRom = 0x0000D390;
+		rom->offset.segment.smplRom = 0x00079470;
 		
-		rom->addr.table.player.init = (HiLo) {
+		rom->table.num.dma = 1526;
+		rom->table.num.obj = 402;
+		rom->table.num.actor = 471;
+		rom->table.num.state = 6;
+		rom->table.num.scene = 101;
+		rom->table.num.kaleido = 2;
+		
+		rom->offset.table.player.init = (HiLo) {
 			0x00B0D5B8, 0x00B0D5C0
 		};
-		rom->addr.table.player.dest = (HiLo) {
+		rom->offset.table.player.dest = (HiLo) {
 			0x00B0D5C8, 0x00B0D5D4
 		};
-		rom->addr.table.player.updt = (HiLo) {
+		rom->offset.table.player.updt = (HiLo) {
 			0x00B0D5DC, 0x00B0D5E8
 		};
-		rom->addr.table.player.draw = (HiLo) {
+		rom->offset.table.player.draw = (HiLo) {
 			0x00B0D5F0, 0x00B0D5FC
 		};
 	}
 	
-	rom->dmaTable = SegmentedToVirtual(0x0, rom->addr.table.dmaTable);
-	rom->objectTable = SegmentedToVirtual(0x0, rom->addr.table.objTable);
-	rom->actorTable = SegmentedToVirtual(0x0, rom->addr.table.actorTable);
-	rom->stateTable = SegmentedToVirtual(0x0, rom->addr.table.stateTable);
-	rom->sceneTable = SegmentedToVirtual(0x0, rom->addr.table.sceneTable);
-	rom->kaleidoTable = SegmentedToVirtual(0x0, rom->addr.table.kaleidoTable);
+	rom->table.dma = SegmentedToVirtual(0x0, rom->offset.table.dmaTable);
+	rom->table.object = SegmentedToVirtual(0x0, rom->offset.table.objTable);
+	rom->table.actor = SegmentedToVirtual(0x0, rom->offset.table.actorTable);
+	rom->table.state = SegmentedToVirtual(0x0, rom->offset.table.stateTable);
+	rom->table.scene = SegmentedToVirtual(0x0, rom->offset.table.sceneTable);
+	rom->table.kaleido = SegmentedToVirtual(0x0, rom->offset.table.kaleidoTable);
 	
 	#if 0 // rezimodnar ksaM sarojaM esuaceb tsuj tseuQ drihT gnipmud diovA
-		if (rom->addr.segment.seqRom == 0x03F00000 &&
-			rom->addr.segment.fontRom == 0x03E00000 &&
-			rom->addr.segment.smplRom == 0x00094870 &&
-			debug) {
+		if (rom->offset.segment.seqRom == 0x03F00000 &&
+			rom->offset.segment.fontRom == 0x03E00000 &&
+			rom->offset.segment.smplRom == 0x00094870 &&
+			rom->type == Zelda_OoT_Debug) {
 			u32* checkVal = SegmentedToVirtual(0x0, 0xBCC920);
 			
 			if (ReadBE(checkVal[0]) == 0x52059 && ReadBE(checkVal[1]) == 0x37F7) {

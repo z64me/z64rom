@@ -30,8 +30,14 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	if (Lib_ParseArguments(argv, "--i", &parArg))
 		input = argv[parArg];
-	if (argc >= 2 && (String_MemMemCase(argv[1], ".z64")))
-		input = argv[1];
+	else {
+		for (s32 i = 0; i < argc; i++) {
+			if (String_MemMemCase(argv[i], ".z64")) {
+				input = argv[i];
+				break;
+			}
+		}
+	}
 	
 	if (input) {
 		printf_toolinfo(sToolName, "\n");

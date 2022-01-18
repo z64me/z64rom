@@ -110,6 +110,12 @@ typedef struct Node {
 	struct Node* next;
 } Node;
 
+typedef enum {
+	MFP_ALIGN   = 1 << 27,
+	MFP_REALLOC = 1 << 28,
+	MFP_END     = 1 << 29,
+} MemInit;
+
 typedef struct MemFile {
 	union {
 		void* data;
@@ -122,6 +128,10 @@ typedef struct MemFile {
 		f64   age;
 		char* name;
 	} info;
+	struct {
+		u32 align;
+		u32 realloc : 1;
+	} param;
 } MemFile;
 
 typedef struct ItemList {
@@ -190,10 +200,12 @@ void File_Save_ReqExt(char* filepath, void* src, s32 size, const char* ext);
 s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg);
 
 MemFile MemFile_Initialize();
+void MemFile_Params(MemFile* memFile, ...);
 void MemFile_Malloc(MemFile* memFile, u32 size);
 void MemFile_Realloc(MemFile* memFile, u32 size);
 void MemFile_Rewind(MemFile* memFile);
 s32 MemFile_Write(MemFile* dest, void* src, u32 size);
+s32 MemFile_Append(MemFile* dest, MemFile* src);
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...);
 s32 MemFile_Read(MemFile* src, void* dest, u32 size);
 s32 MemFile_LoadFile(MemFile* memFile, char* filepath);
@@ -221,6 +233,7 @@ void String_CaseToUp(char* s, s32 i);
 char* String_GetPath(char* src);
 char* String_GetBasename(char* src);
 char* String_GetFilename(char* src);
+char* String_GetFolder(char* src);
 void String_Insert(char* point, char* insert);
 void String_Remove(char* point, s32 amount);
 s32 String_Replace(char* src, char* word, char* replacement);
@@ -348,8 +361,8 @@ extern PrintfSuppressLevel gPrintfSuppress;
 
 #define BinToMb(x) ((f32)(x) / (f32)0x100000)
 #define BinToKb(x) ((f32)(x) / (f32)0x400)
-#define MbToBin(x) (0x100000 * (x))
-#define KbToBin(x) (0x400 * (x))
+#define MbToBin(x) (u32)(0x100000 * (x))
+#define KbToBin(x) (u32)(0x400 * (x))
 
 #define String_Copy(dst, src)   strcpy(dst, src)
 #define String_Merge(dst, src)  strcat(dst, src)

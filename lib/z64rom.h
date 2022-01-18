@@ -11,6 +11,13 @@ typedef struct {
 	u32 lo;
 } HiLo;
 
+typedef enum {
+	NoRom = 0,
+	Zelda_OoT_Debug,
+	Zelda_OoT_1_0,
+	Zelda_MM_U,
+} AttPacked RomType;
+
 typedef struct {
 	struct {
 		u32 dmaTable;
@@ -36,25 +43,37 @@ typedef struct {
 		u32 fontRom;
 		u32 smplRom;
 	} segment;
-	struct {
-		u16 dma;
-		u16 obj;
-		u16 actor;
-		u16 state;
-		u16 scene;
-		u16 kaleido;
-	} tblNum;
 } RomOffset;
 
+typedef struct {
+	u32 start : 28;
+	// 4
+	u32 size  : 24;
+	u32 free  : 1;
+	// 7
+} Dma;
+
 typedef struct Rom {
-	MemFile         file;
-	RomOffset       addr;
-	DmaEntry*       dmaTable;
-	ActorEntry*     actorTable;
-	SceneEntry*     sceneTable;
-	ObjectEntry*    objectTable;
-	KaleidoEntry*   kaleidoTable;
-	GameStateEntry* stateTable;
+	RomType   type;
+	MemFile   file;
+	RomOffset offset;
+	struct {
+		DmaEntry*       dma;
+		ActorEntry*     actor;
+		SceneEntry*     scene;
+		ObjectEntry*    object;
+		KaleidoEntry*   kaleido;
+		GameStateEntry* state;
+		struct {
+			u16 dma;
+			u16 obj;
+			u16 actor;
+			u16 state;
+			u16 scene;
+			u16 kaleido;
+		} num;
+	} table;
+	Dma dma[2000];
 } Rom;
 
 typedef struct N64AudioInfo {
