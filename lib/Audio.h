@@ -46,8 +46,8 @@ typedef struct Sound {
 } Sound; // size = 0x8
 
 typedef struct Adsr {
-	s16 rate;
-	s16 level;
+	u16 rate;
+	u16 level;
 } Adsr; // size = 0x4
 
 typedef struct Instrument {
@@ -62,11 +62,11 @@ typedef struct Instrument {
 } Instrument; // size >= 0x20
 
 typedef struct {
-	u8     release;
-	u8     pan;
-	u8     loaded;
-	Sound  sound;
-	Adsr envelope[]; // AdsrEnvelopePoint*
+	u8    release;
+	u8    pan;
+	u8    loaded;
+	Sound sound;
+	Adsr  envelope[]; // AdsrEnvelopePoint*
 } Drum; // size >= 0x14
 
 typedef struct SoundFont {

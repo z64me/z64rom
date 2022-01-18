@@ -18,9 +18,8 @@ PrintfSuppressLevel gPrintfSuppress = 0;
 char* sPrintfPrefix = "ExtLib";
 u8 sPrintfType = 1;
 u8 gPrintfProgressing;
-u32 overFlowTestA;
 u8* sSegment[255];
-char sCurrentPath[1024];
+char sCurrentPath[512];
 char* sPrintfPreType[][4] = {
 	{
 		NULL,
@@ -65,7 +64,7 @@ void Dir_UnsetParam(DirParam w) {
 void Dir_Set(char* path, ...) {
 	va_list args;
 	
-	memset(sCurrentPath, 0, 1024);
+	memset(sCurrentPath, 0, 512);
 	va_start(args, path);
 	vsnprintf(sCurrentPath, ArrayCount(sCurrentPath), path, args);
 	va_end(args);
@@ -73,7 +72,7 @@ void Dir_Set(char* path, ...) {
 
 void Dir_Enter(char* fmt, ...) {
 	va_list args;
-	char buffer[256 * 4];
+	char buffer[512];
 	
 	va_start(args, fmt);
 	vsnprintf(buffer, ArrayCount(buffer), fmt, args);
@@ -99,7 +98,7 @@ void Dir_Leave(void) {
 }
 
 void Dir_Make(char* dir, ...) {
-	char argBuf[256 * 4];
+	char argBuf[512];
 	va_list args;
 	
 	va_start(args, dir);
@@ -130,9 +129,9 @@ char* Dir_Current(void) {
 }
 
 char* Dir_File(char* fmt, ...) {
-	static char buffer[16][256 * 4];
+	static char buffer[16][512];
 	static u32 bufID;
-	char argBuf[256 * 4];
+	char argBuf[512];
 	va_list args;
 	
 	bufID++;
@@ -222,7 +221,7 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 
 void MakeDir(char* dir, ...) {
 	struct stat st = { 0 };
-	char buffer[256 * 4];
+	char buffer[512];
 	
 	va_list args;
 	
@@ -244,7 +243,7 @@ void MakeDir(char* dir, ...) {
 }
 
 char* CurWorkDir(void) {
-	static char buf[256 * 4];
+	static char buf[512];
 	
 	if (getcwd(buf, sizeof(buf)) == NULL) {
 		printf_error("Could not get CurWorkDir");
@@ -273,7 +272,7 @@ void ItemList_Free(ItemList* itemList) {
 
 // printf
 char* tprintf(char* fmt, ...) {
-	static char buffer[16][256 * 4];
+	static char buffer[16][512];
 	static u32 id;
 	
 	id = (id + 1) % 16;
@@ -866,7 +865,7 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 }
 
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
-	char buffer[1024 * 8];
+	char buffer[512];
 	va_list args;
 	
 	va_start(args, fmt);
@@ -988,8 +987,6 @@ s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
 s32 MemFile_SaveFile(MemFile* memFile, char* filepath) {
 	FILE* file = fopen(filepath, "wb");
 	
-	printf_debugExt_align("Save", "%s", filepath);
-	
 	if (file == NULL) {
 		printf_warning("Failed to fopen file [%s] for writing.", filepath);
 		
@@ -1004,8 +1001,6 @@ s32 MemFile_SaveFile(MemFile* memFile, char* filepath) {
 
 s32 MemFile_SaveFile_String(MemFile* memFile, char* filepath) {
 	FILE* file = fopen(filepath, "w");
-	
-	printf_debugExt_align("Save String", "%s", filepath);
 	
 	if (file == NULL) {
 		printf_warning("Failed to fopen file [%s] for writing.", filepath);
@@ -1054,7 +1049,6 @@ void MemFile_Clear(MemFile* memFile) {
 	memFile->seekPoint = 0;
 }
 
-#define __EXT_STR_MAX 32
 // String
 u32 String_GetHexInt(char* string) {
 	return strtol(string, NULL, 16);
@@ -1092,14 +1086,29 @@ s32 String_CaseComp(char* a, char* b, u32 compSize) {
 	return 0;
 }
 
+static void __GetSlashAndPoint(char* src, s32* slash, s32* point) {
+	s32 strSize = strlen(src);
+	
+	for (s32 i = strSize; i > 0; i--) {
+		if (*point == 0 && src[i] == '.') {
+			*point = i;
+		}
+		if (src[i] == '/' || src[i] == '\\') {
+			*slash = i;
+			break;
+		}
+	}
+}
+
 char* String_GetLine(char* str, s32 line) {
-	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
-	static char* buffer[__EXT_STR_MAX];
+	static char buffer[32][512];
 	static s32 index;
 	s32 iLine = -1;
 	s32 i = 0;
 	s32 j = 0;
-	char* ret;
+	
+	index++;
+	index = index % 32;
 	
 	while (str[i] != '\0') {
 		j = 0;
@@ -1120,24 +1129,21 @@ char* String_GetLine(char* str, s32 line) {
 		}
 	}
 	
-	__EXT_BUFFER(0) = Lib_Calloc(0, j * 2);
-	memcpy(__EXT_BUFFER(0), &str[i], j);
-	Lib_Free(__EXT_BUFFER(-(__EXT_STR_MAX / 2)));
-	ret = __EXT_BUFFER(0);
-	index = Wrap(index + 1, 0, __EXT_STR_MAX - 1);
+	memcpy(buffer[index], &str[i], j);
+	buffer[index][j] = '\0';
 	
-	return ret;
-	#undef __EXT_BUFFER
+	return buffer[index];
 }
 
 char* String_GetWord(char* str, s32 word) {
-	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
-	static char* buffer[__EXT_STR_MAX];
+	static char buffer[32][512];
 	static s32 index;
 	s32 iWord = -1;
 	s32 i = 0;
 	s32 j = 0;
-	char* ret;
+	
+	index++;
+	index = index % 32;
 	
 	while (str[i] != '\0') {
 		j = 0;
@@ -1158,15 +1164,113 @@ char* String_GetWord(char* str, s32 word) {
 		}
 	}
 	
-	if (__EXT_BUFFER(0))
-		__EXT_BUFFER(0) = Lib_Free(__EXT_BUFFER(0));
-	__EXT_BUFFER(0) = Lib_Calloc(0, j * 2);
-	memcpy(__EXT_BUFFER(0), &str[i], j);
-	ret = __EXT_BUFFER(0);
-	index = Wrap(index + 1, 0, __EXT_STR_MAX - 1);
+	memcpy(buffer[index], &str[i], j);
+	buffer[index][j] = '\0';
 	
-	return ret;
-	#undef __EXT_BUFFER
+	return buffer[index];
+}
+
+char* String_GetPath(char* src) {
+	static char buffer[32][512];
+	static s32 index;
+	s32 point = 0;
+	s32 slash = 0;
+	
+	index++;
+	index = index % 32;
+	
+	__GetSlashAndPoint(src, &slash, &point);
+	
+	if (slash == 0)
+		slash = -1;
+	
+	memcpy(buffer[index], src, slash + 1);
+	buffer[index][slash + 1] = '\0';
+	
+	return buffer[index];
+}
+
+char* String_GetBasename(char* src) {
+	static char buffer[32][512];
+	static s32 index;
+	s32 point = 0;
+	s32 slash = 0;
+	
+	__GetSlashAndPoint(src, &slash, &point);
+	
+	index++;
+	index = index % 32;
+	
+	// Offset away from the slash
+	if (slash > 0)
+		slash++;
+	
+	if (point < slash || slash + point == 0) {
+		point = slash + 1;
+		while (src[point] > ' ') point++;
+	}
+	
+	memcpy(buffer[index], &src[slash], point - slash);
+	buffer[index][point - slash] = '\0';
+	
+	return buffer[index];
+}
+
+char* String_GetFilename(char* src) {
+	static char buffer[32][512];
+	static s32 index;
+	s32 point = 0;
+	s32 slash = 0;
+	s32 ext = 0;
+	
+	__GetSlashAndPoint(src, &slash, &point);
+	
+	index++;
+	index = index % 32;
+	
+	// Offset away from the slash
+	if (slash > 0)
+		slash++;
+	
+	if (src[point + ext] == '.') {
+		ext++;
+		while (isalnum(src[point + ext])) ext++;
+	}
+	
+	if (point < slash || slash + point == 0) {
+		point = slash + 1;
+		while (src[point] > ' ') point++;
+	}
+	
+	memcpy(buffer[index], &src[slash], point - slash + ext);
+	buffer[index][point - slash + ext] = '\0';
+	
+	return buffer[index];
+}
+
+char* String_GetSpacedArg(char* argv[], s32 cur) {
+	static char buffer[32][512];
+	static s32 index;
+	char tempBuf[512];
+	s32 i = cur + 1;
+	
+	index++;
+	index = index % 32;
+	
+	if (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
+		String_Copy(tempBuf, argv[cur]);
+		
+		while (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
+			String_Merge(tempBuf, " ");
+			String_Merge(tempBuf, argv[i++]);
+		}
+		
+		String_Copy(buffer[index], tempBuf);
+		
+		return buffer[index];
+	}
+	
+	return argv[cur];
 }
 
 char* String_Line(char* str, s32 line) {
@@ -1223,60 +1327,6 @@ char* String_Word(char* str, s32 word) {
 	return &str[i];
 }
 
-void String_GetLine2(char* dest, char* str, s32 line) {
-	s32 iLine = -1;
-	s32 i = 0;
-	s32 j = 0;
-	
-	while (str[i] != '\0') {
-		j = 0;
-		if (str[i] != '\n') {
-			while (str[i + j] != '\n' && str[i + j] != '\0') {
-				j++;
-			}
-			
-			iLine++;
-			
-			if (iLine == line) {
-				break;
-			}
-			
-			i += j;
-		} else {
-			i++;
-		}
-	}
-	
-	memcpy(dest, &str[i], j);
-}
-
-void String_GetWord2(char* dest, char* str, s32 word) {
-	s32 iWord = -1;
-	s32 i = 0;
-	s32 j = 0;
-	
-	while (str[i] != '\0') {
-		j = 0;
-		if (str[i] != ' ' && str[i] != '\t') {
-			while (str[i + j] != ' ' && str[i + j] != '\t' && str[i + j] != '\0') {
-				j++;
-			}
-			
-			iWord++;
-			
-			if (iWord == word) {
-				break;
-			}
-			
-			i += j;
-		} else {
-			i++;
-		}
-	}
-	
-	memcpy(dest, &str[i], j);
-}
-
 void String_CaseToLow(char* s, s32 i) {
 	for (s32 k = 0; k < i; k++) {
 		if (s[k] >= 'A' && s[k] <= 'Z') {
@@ -1291,88 +1341,6 @@ void String_CaseToUp(char* s, s32 i) {
 			s[k] = s[k] - 32;
 		}
 	}
-}
-
-void String_GetSlashAndPoint(char* src, s32* slash, s32* point) {
-	s32 strSize = strlen(src);
-	
-	for (s32 i = strSize; i > 0; i--) {
-		if (*point == 0 && src[i] == '.') {
-			*point = i;
-		}
-		if (src[i] == '/' || src[i] == '\\') {
-			*slash = i;
-			break;
-		}
-	}
-}
-
-char* String_GetPath(char* src) {
-	static char buffer[32][256 * 4];
-	static s32 index;
-	s32 point = 0;
-	s32 slash = 0;
-	
-	String_GetSlashAndPoint(src, &slash, &point);
-	
-	index++;
-	index = index % 32;
-	
-	if (slash == 0)
-		slash = -1;
-	
-	memset(buffer[index], 0, slash + 2);
-	memcpy(buffer[index], src, slash + 1);
-	
-	return buffer[index];
-}
-
-char* String_GetBasename(char* src) {
-	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
-	static char* buffer[__EXT_STR_MAX];
-	static s32 index;
-	s32 point = 0;
-	s32 slash = 0;
-	char* ret;
-	
-	String_GetSlashAndPoint(src, &slash, &point);
-	
-	if (slash == 0)
-		slash = -1;
-	
-	__EXT_BUFFER(0) = Lib_Calloc(0, slash + 0x10);
-	memset(__EXT_BUFFER(0), 0, point - slash);
-	memcpy(__EXT_BUFFER(0), &src[slash + 1], point - slash - 1);
-	Lib_Free(__EXT_BUFFER(-(__EXT_STR_MAX / 2)));
-	ret = __EXT_BUFFER(0);
-	index = Wrap(index + 1, 0, __EXT_STR_MAX - 1);
-	
-	return ret;
-}
-
-char* String_GetFilename(char* src) {
-	#define __EXT_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
-	static char* buffer[__EXT_STR_MAX];
-	static s32 index;
-	s32 point = 0;
-	s32 slash = 0;
-	char* ret;
-	
-	String_GetSlashAndPoint(src, &slash, &point);
-	
-	if (slash == 0)
-		slash = -1;
-	
-	__EXT_BUFFER(0) = Lib_Calloc(0, slash + 0x10);
-	memset(__EXT_BUFFER(0), 0, strlen(src) - slash);
-	memcpy(__EXT_BUFFER(0), &src[slash + 1], strlen(src) - slash - 1);
-	Lib_Free(__EXT_BUFFER(-(__EXT_STR_MAX / 2)));
-	ret = __EXT_BUFFER(0);
-	index = Wrap(index + 1, 0, __EXT_STR_MAX - 1);
-	
-	return ret;
-	
-	#undef __EXT_BUFFER
 }
 
 void String_Insert(char* point, char* insert) {
@@ -1413,36 +1381,6 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 	String_Copy(dest, String_GetPath(src));
 	String_Merge(dest, String_GetBasename(src));
 	String_Merge(dest, ext);
-}
-
-char* String_GetSpacedArg(char* argv[], s32 cur) {
-	#define STRING_BUFFER(a) buffer[Wrap(index + a, 0, __EXT_STR_MAX - 1)]
-	static char* buffer[__EXT_STR_MAX];
-	char tempBuf[1024];
-	static s32 index;
-	s32 i = cur + 1;
-	
-	if (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
-		if (STRING_BUFFER(0) != NULL)
-			free(STRING_BUFFER(0));
-		
-		String_Copy(tempBuf, argv[cur]);
-		
-		while (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
-			String_Merge(tempBuf, " ");
-			String_Merge(tempBuf, argv[i++]);
-		}
-		
-		STRING_BUFFER(0) = String_Generate(tempBuf);
-		index++;
-		
-		return STRING_BUFFER(-1);
-	}
-	
-	return argv[cur];
-	
-	#undef STRING_BUFFER
-	#undef CONDITION
 }
 
 // Config

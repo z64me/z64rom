@@ -216,8 +216,6 @@ char* String_Line(char* str, s32 line);
 char* String_Word(char* str, s32 word);
 char* String_GetLine(char* str, s32 line);
 char* String_GetWord(char* str, s32 word);
-void String_GetLine2(char* dest, char* str, s32 line);
-void String_GetWord2(char* dest, char* str, s32 word);
 void String_CaseToLow(char* s, s32 i);
 void String_CaseToUp(char* s, s32 i);
 char* String_GetPath(char* src);
