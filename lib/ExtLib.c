@@ -975,6 +975,7 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 	if (dest->param.align) {
 		if (dest->seekPoint % dest->param.align)
 			dest->seekPoint += dest->param.align - (dest->seekPoint % dest->param.align);
+		dest->dataSize = dest->seekPoint;
 	}
 	
 	return 0;
@@ -1576,12 +1577,24 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 }
 
 // Config
+static char* Config_Get(MemFile* memFile, char* name) {
+	u32 lineCount = String_GetLineCount(memFile->data);
+	
+	for (s32 i = 0; i < lineCount; i++) {
+		if (!String_IsDiff(String_GetWord(String_GetLine(memFile->data, i), 0), name)) {
+			return String_GetWord(String_Line(memFile->data, i), 2);
+		}
+	}
+	
+	return NULL;
+}
+
 s32 Config_GetBool(MemFile* memFile, char* boolName) {
 	char* ptr;
 	
-	ptr = String_MemMem(memFile->data, boolName);
+	ptr = Config_Get(memFile, boolName);
 	if (ptr) {
-		char* word = String_GetWord(ptr, 2);
+		char* word = ptr;
 		if (!String_IsDiff(word, "true")) {
 			return true;
 		}
@@ -1600,9 +1613,9 @@ s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]) {
 	char* word;
 	s32 i = 0;
 	
-	ptr = String_MemMem(memFile->data, stringName);
+	ptr = Config_Get(memFile, stringName);
 	if (ptr) {
-		word = String_GetWord(ptr, 2);
+		word = ptr;
 		while (strList[i] != NULL && !String_MemMem(word, strList[i]))
 			i++;
 		
@@ -1618,9 +1631,9 @@ s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]) {
 s32 Config_GetInt(MemFile* memFile, char* intName) {
 	char* ptr;
 	
-	ptr = String_MemMem(memFile->data, intName);
+	ptr = Config_Get(memFile, intName);
 	if (ptr) {
-		return String_GetInt(String_GetWord(ptr, 2));
+		return String_GetInt(ptr);
 	}
 	
 	printf_warning("[%s] is missing integer [%s]", memFile->info.name, intName);
@@ -1631,9 +1644,9 @@ s32 Config_GetInt(MemFile* memFile, char* intName) {
 char* Config_GetString(MemFile* memFile, char* stringName) {
 	char* ptr;
 	
-	ptr = String_MemMem(memFile->data, stringName);
+	ptr = Config_Get(memFile, stringName);
 	if (ptr) {
-		return String_GetWord(ptr, 2);
+		return ptr;
 	}
 	
 	printf_warning("[%s] is missing string [%s]", memFile->info.name, stringName);
@@ -1644,9 +1657,9 @@ char* Config_GetString(MemFile* memFile, char* stringName) {
 f32 Config_GetFloat(MemFile* memFile, char* floatName) {
 	char* ptr;
 	
-	ptr = String_MemMem(memFile->data, floatName);
+	ptr = Config_Get(memFile, floatName);
 	if (ptr) {
-		return String_GetFloat(String_GetWord(ptr, 2));
+		return String_GetFloat(ptr);
 	}
 	
 	printf_warning("[%s] is missing float [%s]", memFile->info.name, floatName);

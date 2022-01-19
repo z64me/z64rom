@@ -784,13 +784,17 @@ s32 sSampleTblNum;
 static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	ItemList itemList;
 	MemFile memBank = MemFile_Initialize();
-	Instrument* instruments;
+	MemFile memInst = MemFile_Initialize();
+	MemFile memEnv = MemFile_Initialize();
 	
 	MemFile_Malloc(&memBank, MbToBin(0.25));
+	MemFile_Malloc(&memInst, MbToBin(0.25));
+	MemFile_Malloc(&memEnv, MbToBin(0.25));
 	Dir_ItemList(&itemList, true);
 	
 	for (s32 i = 0; i < itemList.num; i++) {
 		printf_progress("Build SoundFont", i + 1, itemList.num);
+		MemFile_Clear(&memBank);
 		
 		Dir_Enter(itemList.item[i]); {
 			ItemList listInst;
@@ -818,40 +822,76 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				Dir_Leave();
 			}
 			
-			instruments = Graph_Alloc(sizeof(struct Instrument) * listInst.num);
+			MemFile_Write(&memBank, "Drum", 4);
+			MemFile_Write(&memBank, "Sfx ", 4);
 			
 			for (s32 j = 0; j < listInst.num; j++) {
+				Adsr env[3];
+				Instrument instruments;
+				u32 req = 3;
+				
 				MemFile_Clear(config);
 				MemFile_LoadFile(config, Dir_File("instrument/%s", listInst.item[j]));
 				
-				Dir_Leave(); // soundfont/
-				Dir_Leave(); // sound/
-				Dir_Enter("sample/");
+				if (!String_IsDiff(Config_GetString(config, "low_sample"), "NULL"))
+					req--;
+				if (!String_IsDiff(Config_GetString(config, "prim_sample"), "NULL"))
+					req--;
+				if (!String_IsDiff(Config_GetString(config, "hi_sample"), "NULL"))
+					req--;
 				
 				for (s32 k = 0; k < sSampleTblNum; k++) {
 					if (!String_IsDiff(sSampleTbl[k].name, Config_GetString(config, "low_sample"))) {
-						instruments[j].lo.sample = k | 0xDE000000;
-						instruments[j].lo.tuning = Config_GetFloat(config, "low_tuning");
+						instruments.lo.sample = k | 0xDE000000;
+						instruments.lo.tuning = Config_GetFloat(config, "low_tuning");
+						req--;
 					}
 					if (!String_IsDiff(sSampleTbl[k].name, Config_GetString(config, "prim_sample"))) {
-						instruments[j].prim.sample = k | 0xDE000000;
-						instruments[j].prim.tuning = Config_GetFloat(config, "low_tuning");
+						instruments.prim.sample = k | 0xDE000000;
+						instruments.prim.tuning = Config_GetFloat(config, "prim_tuning");
+						req--;
 					}
 					if (!String_IsDiff(sSampleTbl[k].name, Config_GetString(config, "hi_sample"))) {
-						instruments[j].hi.sample = k | 0xDE000000;
-						instruments[j].hi.tuning = Config_GetFloat(config, "low_tuning");
+						instruments.hi.sample = k | 0xDE000000;
+						instruments.hi.tuning = Config_GetFloat(config, "hi_tuning");
+						req--;
 					}
-					if (instruments[j].hi.sample && instruments[j].lo.sample && instruments[j].prim.sample)
-						break;  // Break earlier if all is found
+					if (req == 0)
+						break;
 				}
 				
-				Dir_Set(restoreDir);
+				instruments.loaded = Config_GetInt(config, "loaded");
+				instruments.splitHi = Config_GetInt(config, "split_lo");
+				instruments.splitLo = Config_GetInt(config, "split_hi");
+				instruments.release = Config_GetInt(config, "release");
+				
+				env[0].rate = Config_GetInt(config, "attack_rate");
+				env[0].level = Config_GetInt(config, "attack_level");
+				env[1].rate = Config_GetInt(config, "hold_rate");
+				env[1].level = Config_GetInt(config, "hold_level");
+				env[2].rate = Config_GetInt(config, "decay_rate");
+				env[2].level = Config_GetInt(config, "decay_level");
+				
+				SwapBE(memInst.seekPoint);
+				MemFile_Write(&memBank, &memInst.seekPoint, sizeof(u32));
+				SwapBE(memInst.seekPoint);
+				
+				MemFile_Write(&memInst, &instruments, sizeof(struct Instrument));
+				MemFile_Write(&memEnv, env, sizeof(struct Adsr) * 3);
+			}
+			
+			if (memBank.seekPoint & 0xF) {
+				MemFile_Params(&memBank, MEM_ALIGN, 16, MEM_END);
+				MemFile_Write(&memBank, "\0", 1);
+				MemFile_Params(&memBank, MEM_CLEAR, MEM_END);
 			}
 			
 			ItemList_Free(&listInst);
 			ItemList_Free(&listSfx);
 			ItemList_Free(&listDrum);
 		} Dir_Leave();
+		
+		MemFile_SaveFile(&memBank, Dir_File("%02X-Bank.bin", i) );
 	}
 	
 	ItemList_Free(&itemList);
