@@ -151,6 +151,9 @@ void SetSegment(const u8 id, void* segment);
 void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
 
+void* Graph_Alloc(u32 size);
+void Graph_Reset(void);
+
 void Dir_SetParam(DirParam w);
 void Dir_UnsetParam(DirParam w);
 void Dir_Set(char* path, ...);

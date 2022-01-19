@@ -783,6 +783,12 @@ s32 sSampleTblNum;
 
 static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	ItemList itemList;
+	MemFile bank;
+	
+	MemFile_Malloc(&bank, MbToBin(0.25));
+	MemFile_Clear(dataFile);
+	MemFile_Clear(config);
+	MemFile_Params(dataFile, MFP_ALIGN, 0, MFP_END);
 	
 	Dir_ItemList(&itemList, true);
 	
@@ -813,10 +819,20 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				Dir_Leave();
 			}
 			
-			printf_debugExt_align("Bank", "%s", Dir_Current());
-			printf_debug_align("Instruments", "%d", instList.num);
-			printf_debug_align("Sfx", "%d", sfxList.num);
-			printf_debug_align("Drums", "%d", drumList.num);
+			MemFile_Printf(&bank, "DRUM");
+			MemFile_Printf(&bank, "SFX ");
+			for (s32 i = 0; i < instList.num; i++)
+				MemFile_Printf(&bank, "INST");
+			for (s32 i = 0; i < instList.num; i++) {
+				Instrument inst;
+				char* file = tprintf("rom/sound/sample/%s/config.cfg", sSampleTbl[i].name);
+				
+				if (MemFile_LoadFile_String(config, file)) {
+					printf_error_align("Config Load", "%s", file);
+				}
+				
+				Config_GetInt(config, "codec");
+			}
 			
 			ItemList_Free(&instList);
 			ItemList_Free(&sfxList);

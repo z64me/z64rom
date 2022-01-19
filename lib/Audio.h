@@ -61,7 +61,7 @@ typedef struct Instrument {
 	Sound  hi;
 } Instrument; // size >= 0x20
 
-typedef struct {
+typedef struct Drum {
 	u8    release;
 	u8    pan;
 	u8    loaded;

@@ -35,6 +35,8 @@ char* sPrintfPreType[][4] = {
 	}
 };
 DirParam sDirParam;
+u8 sGraphBuffer[MbToBin(32)];
+u32 sGraphSize;
 
 // Segment
 void SetSegment(const u8 id, void* segment) {
@@ -50,6 +52,29 @@ void* SegmentedToVirtual(const u8 id, void32 ptr) {
 
 void32 VirtualToSegmented(const u8 id, void* ptr) {
 	return (uPtr)ptr - (uPtr)sSegment[id];
+}
+
+// Graph
+void* Graph_Alloc(u32 size) {
+	u8* ret;
+	
+	if (size == 0)
+		return NULL;
+	
+	if (sGraphSize + size + 0x10 > MbToBin(32))
+		printf_error_align("Graph_Alloc", "Exceeded");
+	ret = &sGraphBuffer[sGraphSize];
+	sGraphSize += size;
+	
+	// align
+	if (sGraphSize % 4)
+		sGraphSize += 4 - (sGraphSize % 4);
+	
+	return ret;
+}
+
+void Graph_Reset(void) {
+	sGraphSize = 0;
 }
 
 // Dir
