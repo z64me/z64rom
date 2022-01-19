@@ -50,26 +50,5 @@ RomFile Dma_RomFile_Func(DmaEntry, table.dma, DmaEntry);
 RomFile Dma_RomFile_Func(GameStateEntry, table.state, GameState);
 RomFile Dma_RomFile_Func(SceneEntry, table.scene, Scene);
 
-void Dma_SetFlag(u64* flag, s32 id) {
-	u32 shift = id % 64;
-	u32 ar = (id - shift) / 64;
-	
-	flag[ar] |= 1 << shift;
-}
-
-void Dma_ClearFlag(u64* flag, s32 id) {
-	u32 shift = id % 64;
-	u32 ar = (id - shift) / 64;
-	
-	flag[ar] &= ~(1 << shift);
-}
-
-s32 Dma_GetFlag(u64* flag, s32 id) {
-	u32 shift = id % 64;
-	u32 ar = (id - shift) / 64;
-	
-	return ((flag[ar] & (1 << shift)) != 0);
-}
-
-void Dma_WriteEntry(Rom* rom, MemFile* memFile) {
+void Dma_WriteEntry(Rom* rom, u32 id, MemFile* memFile) {
 }

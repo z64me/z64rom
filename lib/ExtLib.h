@@ -111,9 +111,13 @@ typedef struct Node {
 } Node;
 
 typedef enum {
-	MFP_ALIGN   = 1 << 27,
-	MFP_REALLOC = 1 << 28,
-	MFP_END     = 1 << 29,
+	MEM_FILENAME = 1 << 16,
+	MEM_CRC32    = 1 << 17,
+	MEM_ALIGN    = 1 << 18,
+	MEM_REALLOC  = 1 << 19,
+	
+	MEM_CLEAR    = 1 << 30,
+	MEM_END      = 1 << 31,
 } MemInit;
 
 typedef struct MemFile {
@@ -127,10 +131,14 @@ typedef struct MemFile {
 	struct {
 		f64   age;
 		char* name;
+		u32   crc32;
 	} info;
 	struct {
-		u32 align;
+		u32 align   : 8;
 		u32 realloc : 1;
+		u32 getCrc  : 1;
+		u32 getName : 1;
+		u64 initKey;
 	} param;
 } MemFile;
 
@@ -152,7 +160,6 @@ void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
 
 void* Graph_Alloc(u32 size);
-void Graph_Reset(void);
 
 void Dir_SetParam(DirParam w);
 void Dir_UnsetParam(DirParam w);
@@ -195,12 +202,13 @@ void* Lib_Realloc(void* data, s32 size);
 void* Lib_Free(void* data);
 s32 Lib_Touch(char* file);
 void Lib_ByteSwap(void* src, s32 size);
+s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg);
+u32 Lib_Crc32(u8* s, u32 n);
 
 void* File_Load(void* destSize, char* filepath);
 void File_Save(char* filepath, void* src, s32 size);
 void* File_Load_ReqExt(void* size, char* filepath, const char* ext);
 void File_Save_ReqExt(char* filepath, void* src, s32 size, const char* ext);
-s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg);
 
 MemFile MemFile_Initialize();
 void MemFile_Params(MemFile* memFile, ...);
@@ -247,6 +255,7 @@ s32 Config_GetBool(MemFile* memFile, char* boolName);
 s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]);
 s32 Config_GetInt(MemFile* memFile, char* intName);
 char* Config_GetString(MemFile* memFile, char* stringName);
+f32 Config_GetFloat(MemFile* memFile, char* floatName);
 
 #define Node_Add(head, node) { \
 		OsAssert(node != NULL) \

@@ -36,7 +36,7 @@ char* sPrintfPreType[][4] = {
 };
 DirParam sDirParam;
 u8 sGraphBuffer[MbToBin(32)];
-u32 sGraphSize;
+u32 sGraphSize = 0x10;
 
 // Segment
 void SetSegment(const u8 id, void* segment) {
@@ -57,14 +57,23 @@ void32 VirtualToSegmented(const u8 id, void* ptr) {
 // Graph
 void* Graph_Alloc(u32 size) {
 	u8* ret;
+	u32* param;
+	
+	if (size >= MbToBin(30))
+		printf_error("Can't fit %fMb into the GraphBuffer", BinToMb(size));
 	
 	if (size == 0)
 		return NULL;
 	
-	if (sGraphSize + size + 0x10 > MbToBin(32))
-		printf_error_align("Graph_Alloc", "Exceeded");
+	if (sGraphSize + size + 0x20 > MbToBin(32))
+		sGraphSize = 0x10;
+	
+	param = (u32*)&sGraphBuffer[sGraphSize];
+	param[-1] = size;
+	
 	ret = &sGraphBuffer[sGraphSize];
-	sGraphSize += size;
+	memset(ret, 0, size);
+	sGraphSize += size + 0x10;
 	
 	// align
 	if (sGraphSize % 4)
@@ -73,8 +82,14 @@ void* Graph_Alloc(u32 size) {
 	return ret;
 }
 
-void Graph_Reset(void) {
-	sGraphSize = 0;
+// Graph
+void* Graph_Realloc(void* ptr, u32 size) {
+	u8* ret = Graph_Alloc(size);
+	u32* param = ptr;
+	
+	memcpy(ret, ptr, param[-1]);
+	
+	return ret;
 }
 
 // Dir
@@ -777,6 +792,22 @@ s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg) {
 	return 0;
 }
 
+u32 Lib_Crc32(u8* s, u32 n) {
+	uint32_t crc = 0xFFFFFFFF;
+	
+	for (size_t i = 0; i < n; i++) {
+		u8 ch = s[i];
+		for (s32 j = 0; j < 8; j++) {
+			u32 b = (ch ^ crc) & 1;
+			crc >>= 1;
+			if (b) crc = crc ^ 0xEDB88320;
+			ch >>= 1;
+		}
+	}
+	
+	return ~crc;
+}
+
 // File
 void* File_Load(void* destSize, char* filepath) {
 	s32 size;
@@ -839,46 +870,49 @@ void File_Save_ReqExt(char* filepath, void* src, s32 size, const char* ext) {
 
 // MemFile
 MemFile MemFile_Initialize() {
-	return (MemFile) { 0 };
+	return (MemFile) { .param.initKey = 0xD0E0A0D0B0E0E0F0 };
 }
 
 void MemFile_Params(MemFile* memFile, ...) {
 	va_list args;
-	MemInit cmd;
+	u32 cmd;
 	u32 arg;
 	
 	va_start(args, memFile);
 	for (;;) {
-		cmd = va_arg(args, MemInit);
+		cmd = va_arg(args, uPtr);
 		
-		if (arg == MFP_END) {
+		if (cmd == MEM_END) {
 			break;
 		}
 		
-		arg = va_arg(args, u32);
+		if (cmd == MEM_CLEAR) {
+			memset(
+				&memFile->param,
+				0,
+				sizeof(struct MemFile) - ((uPtr) & memFile->param - (uPtr)memFile)
+			);
+			continue;
+		}
 		
-		switch (cmd) {
-			case MFP_ALIGN: {
-				memFile->param.align = arg;
-				break;
-			}
-			case MFP_REALLOC: {
-				memFile->param.realloc = arg;
-				break;
-			}
-			case MFP_END: {
-				va_end(args);
-				
-				return;
-				break;
-			}
+		arg = va_arg(args, uPtr);
+		
+		if (cmd == MEM_FILENAME) {
+			memFile->param.getName = arg > 0 ? true : false;
+		} else if (cmd == MEM_CRC32) {
+			memFile->param.getCrc = arg > 0 ? true : false;
+		} else if (cmd == MEM_ALIGN) {
+			memFile->param.align = arg;
+		} else if (cmd == MEM_REALLOC) {
+			memFile->param.realloc = arg > 0 ? true : false;
 		}
 	}
 	va_end(args);
 }
 
 void MemFile_Malloc(MemFile* memFile, u32 size) {
-	*memFile = MemFile_Initialize();
+	if (memFile->param.initKey != 0xD0E0A0D0B0E0E0F0)
+		*memFile = MemFile_Initialize();
 	memFile->data = malloc(size);
 	memset(memFile->data, 0, size);
 	
@@ -1045,9 +1079,16 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 	fclose(file);
 	stat(filepath, &sta);
 	memFile->info.age = sta.st_mtime;
-	if (memFile->info.name)
-		free(memFile->info.name);
-	memFile->info.name = String_Generate(filepath);
+	
+	if (memFile->param.getName != 0) {
+		if (memFile->info.name)
+			free(memFile->info.name);
+		memFile->info.name = String_Generate(filepath);
+	}
+	
+	if (memFile->param.getCrc) {
+		memFile->info.crc32 = Lib_Crc32(memFile->data, memFile->dataSize);
+	}
 	
 	#ifndef NDEBUG
 		printf_debug_align("Ptr", "%08X", memFile->data);
@@ -1092,9 +1133,16 @@ s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
 	fclose(file);
 	stat(filepath, &sta);
 	memFile->info.age = sta.st_mtime;
-	if (memFile->info.name)
-		free(memFile->info.name);
-	memFile->info.name = String_Generate(filepath);
+	
+	if (memFile->param.getName != 0) {
+		if (memFile->info.name)
+			free(memFile->info.name);
+		memFile->info.name = String_Generate(filepath);
+	}
+	
+	if (memFile->param.getCrc) {
+		memFile->info.crc32 = Lib_Crc32(memFile->data, memFile->dataSize);
+	}
 	
 	#ifndef NDEBUG
 		printf_debug("Ptr: %08X", memFile->data);
@@ -1591,4 +1639,17 @@ char* Config_GetString(MemFile* memFile, char* stringName) {
 	printf_warning("[%s] is missing string [%s]", memFile->info.name, stringName);
 	
 	return NULL;
+}
+
+f32 Config_GetFloat(MemFile* memFile, char* floatName) {
+	char* ptr;
+	
+	ptr = String_MemMem(memFile->data, floatName);
+	if (ptr) {
+		return String_GetFloat(String_GetWord(ptr, 2));
+	}
+	
+	printf_warning("[%s] is missing float [%s]", memFile->info.name, floatName);
+	
+	return -69.6969;
 }

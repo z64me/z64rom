@@ -96,7 +96,7 @@ s32 sSortID;
 	Assert(sDumpID < 1024 * 5);
 
 #define __Config_Sample_NULL(wow) \
-	Config_WriteVar_Str(# wow "_sample_id", "NULL"); \
+	Config_WriteVar_Str(# wow "_sample", "NULL"); \
 	Config_WriteVar_Str(# wow "_tuning", "NULL");
 
 static void Rom_Config_Instrument(Rom* rom, MemFile* config, Instrument* instrument, char* name, char* out, u32 off) {
@@ -265,7 +265,7 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		Dir_Enter("0x%02X-%s/", i, gBankName[i]);
 		
 		if (entry->numInst) {
-			Dir_Enter("instruments/");
+			Dir_Enter("instrument/");
 			
 			#ifndef NDEBUG
 				printf_debug_align("dump", "instruments");
@@ -318,7 +318,7 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		}
 		
 		if (entry->numDrum) {
-			Dir_Enter("drums/");
+			Dir_Enter("drum/");
 			
 			#ifndef NDEBUG
 				printf_debug_align("dump", "drums");
@@ -783,60 +783,74 @@ s32 sSampleTblNum;
 
 static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	ItemList itemList;
-	MemFile bank;
+	MemFile memBank = MemFile_Initialize();
+	Instrument* instruments;
 	
-	MemFile_Malloc(&bank, MbToBin(0.25));
-	MemFile_Clear(dataFile);
-	MemFile_Clear(config);
-	MemFile_Params(dataFile, MFP_ALIGN, 0, MFP_END);
-	
+	MemFile_Malloc(&memBank, MbToBin(0.25));
 	Dir_ItemList(&itemList, true);
 	
 	for (s32 i = 0; i < itemList.num; i++) {
+		printf_progress("Build SoundFont", i + 1, itemList.num);
+		
 		Dir_Enter(itemList.item[i]); {
-			ItemList instList;
-			ItemList sfxList;
-			ItemList drumList;
+			ItemList listInst;
+			ItemList listSfx;
+			ItemList listDrum;
+			char* restoreDir = Graph_Alloc(strlen(Dir_Current()));
 			
-			MemFile_Clear(config);
-			MemFile_Clear(dataFile);
+			String_Copy(restoreDir, Dir_Current());
 			
-			if (Dir_Stat("instruments/")) {
-				Dir_Enter("instruments/");
-				Dir_ItemList(&instList, false);
+			if (Dir_Stat("instrument/")) {
+				Dir_Enter("instrument/");
+				Dir_ItemList(&listInst, false);
 				Dir_Leave();
 			}
 			
 			if (Dir_Stat("sfx/")) {
 				Dir_Enter("sfx/");
-				Dir_ItemList(&sfxList, false);
+				Dir_ItemList(&listSfx, false);
 				Dir_Leave();
 			}
 			
-			if (Dir_Stat("drums/")) {
-				Dir_Enter("drums/");
-				Dir_ItemList(&drumList, false);
+			if (Dir_Stat("drum/")) {
+				Dir_Enter("drum/");
+				Dir_ItemList(&listDrum, false);
 				Dir_Leave();
 			}
 			
-			MemFile_Printf(&bank, "DRUM");
-			MemFile_Printf(&bank, "SFX ");
-			for (s32 i = 0; i < instList.num; i++)
-				MemFile_Printf(&bank, "INST");
-			for (s32 i = 0; i < instList.num; i++) {
-				Instrument inst;
-				char* file = tprintf("rom/sound/sample/%s/config.cfg", sSampleTbl[i].name);
+			instruments = Graph_Alloc(sizeof(struct Instrument) * listInst.num);
+			
+			for (s32 j = 0; j < listInst.num; j++) {
+				MemFile_Clear(config);
+				MemFile_LoadFile(config, Dir_File("instrument/%s", listInst.item[j]));
 				
-				if (MemFile_LoadFile_String(config, file)) {
-					printf_error_align("Config Load", "%s", file);
+				Dir_Leave(); // soundfont/
+				Dir_Leave(); // sound/
+				Dir_Enter("sample/");
+				
+				for (s32 k = 0; k < sSampleTblNum; k++) {
+					if (!String_IsDiff(sSampleTbl[k].name, Config_GetString(config, "low_sample"))) {
+						instruments[j].lo.sample = k | 0xDE000000;
+						instruments[j].lo.tuning = Config_GetFloat(config, "low_tuning");
+					}
+					if (!String_IsDiff(sSampleTbl[k].name, Config_GetString(config, "prim_sample"))) {
+						instruments[j].prim.sample = k | 0xDE000000;
+						instruments[j].prim.tuning = Config_GetFloat(config, "low_tuning");
+					}
+					if (!String_IsDiff(sSampleTbl[k].name, Config_GetString(config, "hi_sample"))) {
+						instruments[j].hi.sample = k | 0xDE000000;
+						instruments[j].hi.tuning = Config_GetFloat(config, "low_tuning");
+					}
+					if (instruments[j].hi.sample && instruments[j].lo.sample && instruments[j].prim.sample)
+						break;  // Break earlier if all is found
 				}
 				
-				Config_GetInt(config, "codec");
+				Dir_Set(restoreDir);
 			}
 			
-			ItemList_Free(&instList);
-			ItemList_Free(&sfxList);
-			ItemList_Free(&drumList);
+			ItemList_Free(&listInst);
+			ItemList_Free(&listSfx);
+			ItemList_Free(&listDrum);
 		} Dir_Leave();
 	}
 	
@@ -856,7 +870,7 @@ static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) 
 	MemFile_Clear(config);
 	MemFile_Clear(dataFile);
 	Dir_ItemList(&itemList, true);
-	MemFile_Params(dataFile, MFP_ALIGN, 16, MFP_END);
+	MemFile_Params(dataFile, MEM_ALIGN, 16, MEM_END);
 	
 	for (s32 i = 0; i < itemList.num; i++) {
 		Dir_Enter(itemList.item[i]); {
@@ -909,7 +923,7 @@ void Rom_Build(Rom* rom) {
 			} Dir_Leave();
 			
 			Dir_Enter("soundfont/"); {
-				// Rom_Build_SoundFont(rom, &dataFile, &config);
+				Rom_Build_SoundFont(rom, &dataFile, &config);
 			} Dir_Leave();
 		} Dir_Leave();
 	} Dir_Leave();
@@ -920,6 +934,8 @@ void Rom_Build(Rom* rom) {
 void Rom_New(Rom* rom, char* romName) {
 	u32* hdr;
 	
+	rom->file = MemFile_Initialize();
+	MemFile_Params(&rom->file, MEM_FILENAME, true, MEM_END);
 	if (MemFile_LoadFile(&rom->file, romName)) {
 		printf_error_align("Load Rom", "%s", romName);
 	}
