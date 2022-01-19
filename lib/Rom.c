@@ -790,6 +790,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	MemFile_Malloc(&memBank, MbToBin(0.25));
 	MemFile_Malloc(&memInst, MbToBin(0.25));
 	MemFile_Malloc(&memEnv, MbToBin(0.25));
+	MemFile_Params(&memEnv, MEM_ALIGN, 8, MEM_END);
 	Dir_ItemList(&itemList, true);
 	
 	for (s32 i = 0; i < itemList.num; i++) {
@@ -878,12 +879,19 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				env[2].rate = Config_GetInt(config, "decay_rate");
 				env[2].level = Config_GetInt(config, "decay_level");
 				
+				SwapBE(env[0].rate);
+				SwapBE(env[0].level);
+				SwapBE(env[1].rate);
+				SwapBE(env[1].level);
+				SwapBE(env[2].rate);
+				SwapBE(env[2].level);
+				
 				SwapBE(memInst.seekPoint);
 				MemFile_Write(&memBank, &memInst.seekPoint, sizeof(u32));
 				SwapBE(memInst.seekPoint);
 				
 				MemFile_Write(&memInst, &instruments, sizeof(struct Instrument));
-				MemFile_Write(&memEnv, env, sizeof(struct Adsr) * 3);
+				MemFile_Write(&memEnv, env, sizeof(env));
 			}
 			
 			if (memBank.seekPoint & 0xF) {
@@ -906,7 +914,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			for (s32 j = 0; j < listInst.num; j++) {
 				Instrument* inst = SegmentedToVirtual(0x4, ReadBE(memBank.cast.u32[2 + j]));
 				
-				inst->envelope = memBank.seekPoint + sizeof(struct Adsr) * 3 * j;
+				inst->envelope = memBank.seekPoint + sizeof(struct Adsr) * 4 * j;
+				SwapBE(inst->envelope);
 			}
 			MemFile_Append(&memBank, &memEnv);
 		} Dir_Leave();
