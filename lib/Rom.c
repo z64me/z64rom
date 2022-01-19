@@ -795,6 +795,9 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	for (s32 i = 0; i < itemList.num; i++) {
 		printf_progress("Build SoundFont", i + 1, itemList.num);
 		MemFile_Clear(&memBank);
+		MemFile_Clear(&memInst);
+		MemFile_Clear(&memEnv);
+		SetSegment(0x4, memBank.data);
 		
 		Dir_Enter(itemList.item[i]); {
 			ItemList listInst;
@@ -888,23 +891,28 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				MemFile_Write(&memBank, "\0", 1);
 				MemFile_Params(&memBank, MEM_CLEAR, MEM_END);
 			}
-			
 			for (s32 j = 0; j < listInst.num; j++) {
+				SwapBE(memBank.cast.u32[2 + j]);
 				memBank.cast.u32[2 + j] += memBank.seekPoint;
 				SwapBE(memBank.cast.u32[2 + j]);
 			}
-			
 			MemFile_Append(&memBank, &memInst);
 			
-			ItemList_Free(&listInst);
-			ItemList_Free(&listSfx);
-			ItemList_Free(&listDrum);
+			if (memBank.seekPoint & 0xF) {
+				MemFile_Params(&memBank, MEM_ALIGN, 16, MEM_END);
+				MemFile_Write(&memBank, "\0", 1);
+				MemFile_Params(&memBank, MEM_CLEAR, MEM_END);
+			}
+			for (s32 j = 0; j < listInst.num; j++) {
+				Instrument* inst = SegmentedToVirtual(0x4, ReadBE(memBank.cast.u32[2 + j]));
+				
+				inst->envelope = memBank.seekPoint + sizeof(struct Adsr) * 3 * j;
+			}
+			MemFile_Append(&memBank, &memEnv);
 		} Dir_Leave();
 		
 		MemFile_SaveFile(&memBank, Dir_File("%02X-Bank.bin", i) );
 	}
-	
-	ItemList_Free(&itemList);
 }
 
 static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) {
@@ -955,7 +963,6 @@ static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) 
 	
 	MemFile_SaveFile(dataFile, Dir_File("SampleTable.bin"));
 	MemFile_SaveFile(config, Dir_File("SampleTable.cfg"));
-	ItemList_Free(&itemList);
 	MemFile_Free(&sample);
 }
 

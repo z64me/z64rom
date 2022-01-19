@@ -235,8 +235,8 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 	if (itemList->num) {
 		u32 i = 0;
 		dir = opendir(sCurrentPath);
-		itemList->buffer = Lib_Malloc(0, bufSize);
-		itemList->item = Lib_Malloc(0, sizeof(char*) * itemList->num);
+		itemList->buffer = Graph_Alloc(bufSize);
+		itemList->item = Graph_Alloc(sizeof(char*) * itemList->num);
 		
 		while ((entry = readdir(dir)) != NULL) {
 			if (isPath) {
@@ -296,17 +296,6 @@ char* CurWorkDir(void) {
 	String_Merge(buf, "/");
 	
 	return buf;
-}
-
-// ItemList
-void ItemList_Free(ItemList* itemList) {
-	if (itemList->item != NULL)
-		free(itemList->item);
-	
-	if (itemList->buffer)
-		free(itemList->buffer);
-	
-	*itemList = (ItemList) { 0 };
 }
 
 // printf
