@@ -835,7 +835,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			
 			for (s32 j = 0; j < listInst.num; j++) {
 				Instrument instruments = { 0 };
-				Adsr confEnv[4];
+				Adsr confEnv[4] = { 0 };
 				u32 req = 3;
 				
 				MemFile_Clear(config);
@@ -876,41 +876,25 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				instruments.splitLo = Config_GetInt(config, "split_hi");
 				instruments.release = Config_GetInt(config, "release");
 				
-				confEnv[0].rate = Config_GetInt(config, "attack_rate");
-				confEnv[0].level = Config_GetInt(config, "attack_level");
-				confEnv[1].rate = Config_GetInt(config, "hold_rate");
-				confEnv[1].level = Config_GetInt(config, "hold_level");
-				confEnv[2].rate = Config_GetInt(config, "decay_rate");
-				confEnv[2].level = Config_GetInt(config, "decay_level");
-				SwapBE(confEnv[0].rate);
-				SwapBE(confEnv[0].level);
-				SwapBE(confEnv[1].rate);
-				SwapBE(confEnv[1].level);
-				SwapBE(confEnv[2].rate);
-				SwapBE(confEnv[2].level);
+				confEnv[0].rate = Config_GetInt(config, "attack_rate"); SwapBE(confEnv[0].rate);
+				confEnv[0].level = Config_GetInt(config, "attack_level"); SwapBE(confEnv[0].level);
+				confEnv[1].rate = Config_GetInt(config, "hold_rate"); SwapBE(confEnv[1].rate);
+				confEnv[1].level = Config_GetInt(config, "hold_level"); SwapBE(confEnv[1].level);
+				confEnv[2].rate = Config_GetInt(config, "decay_rate"); SwapBE(confEnv[2].rate);
+				confEnv[2].level = Config_GetInt(config, "decay_level"); SwapBE(confEnv[2].level);
 				
 				if (numEnvList == 0) {
 					envIndex = Graph_Alloc(2 * listInst.num);
 					envList = Graph_Alloc(16 * listInst.num);
 					
-					envList[0].rate = confEnv[0].rate;
-					envList[0].level = confEnv[0].level;
-					envList[1].rate = confEnv[1].rate;
-					envList[1].level = confEnv[1].level;
-					envList[2].rate = confEnv[2].rate;
-					envList[2].level = confEnv[2].level;
+					memcpy(&envList[0], confEnv, 16);
 					envIndex[numEnvList] = numEnvList;
 					MemFile_Write(&memEnv, &envList[numEnvList * 4], sizeof(struct Adsr) * 4);
 					numEnvList++;
 				} else {
 					u32 new = 1;
 					for (s32 k = 0; k < numEnvList; k++) {
-						if (envList[k * 4 + 0].rate == confEnv[0].rate &&
-							envList[k * 4 + 0].level == confEnv[0].level &&
-							envList[k * 4 + 1].rate == confEnv[1].rate &&
-							envList[k * 4 + 1].level == confEnv[1].level &&
-							envList[k * 4 + 2].rate == confEnv[2].rate &&
-							envList[k * 4 + 2].level == confEnv[2].level) {
+						if (memcmp(&envList[k * 4], confEnv, 16) == 0) {
 							envIndex[numEnvList] = k;
 							new = 0;
 							break;
@@ -918,12 +902,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					}
 					
 					if (new) {
-						envList[numEnvList * 4 + 0].rate = confEnv[0].rate;
-						envList[numEnvList * 4 + 0].level = confEnv[0].level;
-						envList[numEnvList * 4 + 1].rate = confEnv[1].rate;
-						envList[numEnvList * 4 + 1].level = confEnv[1].level;
-						envList[numEnvList * 4 + 2].rate = confEnv[2].rate;
-						envList[numEnvList * 4 + 2].level = confEnv[2].level;
+						memcpy(&envList[numEnvList * 4], confEnv, 16);
 						envIndex[numEnvList] = numEnvList;
 						MemFile_Write(&memEnv, &envList[numEnvList * 4], sizeof(struct Adsr) * 4);
 						numEnvList++;
