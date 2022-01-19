@@ -826,8 +826,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			MemFile_Write(&memBank, "Sfx ", 4);
 			
 			for (s32 j = 0; j < listInst.num; j++) {
-				Adsr env[3];
-				Instrument instruments;
+				Adsr env[3] = { 0 };
+				Instrument instruments = { 0 };
 				u32 req = 3;
 				
 				MemFile_Clear(config);
@@ -844,16 +844,19 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					if (!String_IsDiff(sSampleTbl[k].name, Config_GetString(config, "low_sample"))) {
 						instruments.lo.sample = k | 0xDE000000;
 						instruments.lo.tuning = Config_GetFloat(config, "low_tuning");
+						SwapBE(instruments.lo.swap32);
 						req--;
 					}
 					if (!String_IsDiff(sSampleTbl[k].name, Config_GetString(config, "prim_sample"))) {
 						instruments.prim.sample = k | 0xDE000000;
 						instruments.prim.tuning = Config_GetFloat(config, "prim_tuning");
+						SwapBE(instruments.prim.swap32);
 						req--;
 					}
 					if (!String_IsDiff(sSampleTbl[k].name, Config_GetString(config, "hi_sample"))) {
 						instruments.hi.sample = k | 0xDE000000;
 						instruments.hi.tuning = Config_GetFloat(config, "hi_tuning");
+						SwapBE(instruments.hi.swap32);
 						req--;
 					}
 					if (req == 0)
@@ -885,6 +888,13 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				MemFile_Write(&memBank, "\0", 1);
 				MemFile_Params(&memBank, MEM_CLEAR, MEM_END);
 			}
+			
+			for (s32 j = 0; j < listInst.num; j++) {
+				memBank.cast.u32[2 + j] += memBank.seekPoint;
+				SwapBE(memBank.cast.u32[2 + j]);
+			}
+			
+			MemFile_Append(&memBank, &memInst);
 			
 			ItemList_Free(&listInst);
 			ItemList_Free(&listSfx);
