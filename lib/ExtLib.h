@@ -160,6 +160,7 @@ void* SegmentedToVirtual(const u8 id, void32 ptr);
 void32 VirtualToSegmented(const u8 id, void* ptr);
 
 void* Graph_Alloc(u32 size);
+void* Graph_Realloc(void* ptr, u32 size);
 
 void Dir_SetParam(DirParam w);
 void Dir_UnsetParam(DirParam w);
