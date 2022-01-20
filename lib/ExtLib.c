@@ -35,7 +35,7 @@ char* sPrintfPreType[][4] = {
 	}
 };
 DirParam sDirParam;
-u8 sGraphBuffer[MbToBin(32)];
+u8 sGraphBuffer[MbToBin(128)];
 u32 sGraphSize = 0x10;
 
 // Segment
@@ -997,6 +997,7 @@ s32 MemFile_Append(MemFile* dest, MemFile* src) {
 	if (dest->param.align) {
 		if (dest->seekPoint % dest->param.align)
 			dest->seekPoint += dest->param.align - (dest->seekPoint % dest->param.align);
+		dest->dataSize = dest->seekPoint;
 	}
 	
 	return 0;

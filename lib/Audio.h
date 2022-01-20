@@ -22,14 +22,7 @@ typedef struct Sample {
 			u32 unk_bit26 : 1;
 			u32 unk_bit25 : 1;
 			u32 size      : 24;
-		} infoBE;
-		struct {
-			u32 size      : 24;
-			u32 unk_bit25 : 1;
-			u32 unk_bit26 : 1;
-			u32 medium    : 2;
-			u32 codec     : 4;
-		} infoLE;
+		} info;
 		u32 data;
 	};
 	void32 sampleAddr; // u8*
