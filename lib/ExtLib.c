@@ -59,13 +59,13 @@ void* Graph_Alloc(u32 size) {
 	u8* ret;
 	u32* param;
 	
-	if (size >= MbToBin(30))
+	if (size >= MbToBin(32))
 		printf_error("Can't fit %fMb into the GraphBuffer", BinToMb(size));
 	
 	if (size == 0)
 		return NULL;
 	
-	if (sGraphSize + size + 0x20 > MbToBin(32))
+	if (sGraphSize + size + 0x20 > MbToBin(128))
 		sGraphSize = 0x10;
 	
 	param = (u32*)&sGraphBuffer[sGraphSize];
@@ -1003,6 +1003,14 @@ s32 MemFile_Append(MemFile* dest, MemFile* src) {
 	return 0;
 }
 
+void MemFile_Align(MemFile* src, u32 align) {
+	if (src->seekPoint & 0xF) {
+		MemFile_Params(src, MEM_ALIGN, 16, MEM_END);
+		MemFile_Write(src, "\0", 1);
+		MemFile_Params(src, MEM_CLEAR, MEM_END);
+	}
+}
+
 s32 MemFile_Printf(MemFile* dest, const char* fmt, ...) {
 	char buffer[512];
 	va_list args;
@@ -1144,6 +1152,9 @@ s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
 }
 
 s32 MemFile_SaveFile(MemFile* memFile, char* filepath) {
+	#ifndef NDEBUG
+		printf_debugExt_align("File", "%s", filepath);
+	#endif
 	FILE* file = fopen(filepath, "wb");
 	
 	if (file == NULL) {
@@ -1159,6 +1170,9 @@ s32 MemFile_SaveFile(MemFile* memFile, char* filepath) {
 }
 
 s32 MemFile_SaveFile_String(MemFile* memFile, char* filepath) {
+	#ifndef NDEBUG
+		printf_debugExt_align("File", "%s", filepath);
+	#endif
 	FILE* file = fopen(filepath, "w");
 	
 	if (file == NULL) {

@@ -62,6 +62,14 @@ typedef struct Drum {
 	Adsr  envelope[]; // AdsrEnvelopePoint*
 } Drum; // size >= 0x14
 
+typedef struct DrumAlt {
+	u8    release;
+	u8    pan;
+	u8    loaded;
+	Sound sound;
+	Adsr  envelope[4]; // AdsrEnvelopePoint*
+} DrumAlt; // size >= 0x14
+
 typedef struct SoundFont {
 	void32 drums;
 	void32 sfx;
