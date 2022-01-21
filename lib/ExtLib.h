@@ -161,6 +161,7 @@ void32 VirtualToSegmented(const u8 id, void* ptr);
 
 void* Graph_Alloc(u32 size);
 void* Graph_Realloc(void* ptr, u32 size);
+u32 Graph_GetSize(void* ptr);
 
 void Dir_SetParam(DirParam w);
 void Dir_UnsetParam(DirParam w);
@@ -175,6 +176,8 @@ s32 Dir_Stat(char* dir);
 void Dir_ItemList(ItemList* itemList, bool isPath);
 void MakeDir(char* dir, ...);
 char* CurWorkDir(void);
+
+void ItemList_NumericalSort(ItemList* list);
 
 char* tprintf(char* fmt, ...);
 void printf_SetSuppressLevel(PrintfSuppressLevel lvl);

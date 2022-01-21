@@ -889,18 +889,21 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			if (Dir_Stat("instrument/")) {
 				Dir_Enter("instrument/");
 				Dir_ItemList(&listInst, false);
+				ItemList_NumericalSort(&listInst);
 				Dir_Leave();
 			}
 			
 			if (Dir_Stat("sfx/")) {
 				Dir_Enter("sfx/");
 				Dir_ItemList(&listSfx, false);
+				ItemList_NumericalSort(&listSfx);
 				Dir_Leave();
 			}
 			
 			if (Dir_Stat("drum/")) {
 				Dir_Enter("drum/");
 				Dir_ItemList(&listDrum, false);
+				ItemList_NumericalSort(&listDrum);
 				Dir_Leave();
 			}
 			
@@ -1065,6 +1068,10 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 						Config_GetInt(dataFile, "loop_count"),
 						Config_GetInt(dataFile, "tail_end"),
 					};
+					SwapBE(loop.start);
+					SwapBE(loop.end);
+					SwapBE(loop.count);
+					SwapBE(loop.origSpls);
 					smpl.loop = memLoopBook.seekPoint;
 					MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
 					if (loop.count != 0) {
@@ -1134,6 +1141,10 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 						Config_GetInt(config, "loop_count"),
 						Config_GetInt(config, "tail_end"),
 					};
+					SwapBE(loop.start);
+					SwapBE(loop.end);
+					SwapBE(loop.count);
+					SwapBE(loop.origSpls);
 					smpl.loop = memLoopBook.seekPoint;
 					MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
 					if (loop.count != 0) {
@@ -1248,6 +1259,10 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 						Config_GetInt(config, "loop_count"),
 						Config_GetInt(config, "tail_end"),
 					};
+					SwapBE(loop.start);
+					SwapBE(loop.end);
+					SwapBE(loop.count);
+					SwapBE(loop.origSpls);
 					smpl.loop = memLoopBook.seekPoint;
 					MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
 					if (loop.count != 0) {
@@ -1378,7 +1393,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		head->entries[i].numDrum = listDrum.num;
 		head->entries[i].numInst = listInst.num;
 		head->entries[i].numSfx = listSfx.num;
-		head->entries[i].audioTable1 = 0;
+		// head->entries[i].audioTable1 = 0;
 		SwapBE(head->entries[i].size);
 		SwapBE(head->entries[i].numSfx);
 	}
@@ -1445,8 +1460,10 @@ static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) 
 	
 	head->numEntries = 1;
 	SwapBE(head->numEntries);
-	head->entries[0].romAddr = 0;
-	head->entries[0].size = ReadBE(dataFile->dataSize);
+	for (s32 i = 0; i < 7 ; i++) {
+		head->entries[i].romAddr = 0;
+		head->entries[i].size = ReadBE(dataFile->dataSize);
+	}
 	
 	MemFile_Append(&rom->file, dataFile);
 	MemFile_Free(&sample);

@@ -92,6 +92,12 @@ void* Graph_Realloc(void* ptr, u32 size) {
 	return ret;
 }
 
+u32 Graph_GetSize(void* ptr) {
+	u32* val = ptr;
+	
+	return val[-1];
+}
+
 // Dir
 void Dir_SetParam(DirParam w) {
 	sDirParam |= w;
@@ -168,7 +174,7 @@ char* Dir_Current(void) {
 }
 
 char* Dir_File(char* fmt, ...) {
-	static char buffer[16][512];
+	static char buffer[128][512];
 	static u32 bufID;
 	char argBuf[512];
 	va_list args;
@@ -298,9 +304,42 @@ char* CurWorkDir(void) {
 	return buf;
 }
 
+// ItemList
+void ItemList_NumericalSort(ItemList* list) {
+	ItemList sorted = { 0 };
+	
+	if (list->num <= 1)
+		return;
+	
+	sorted.buffer = Graph_Alloc(Graph_GetSize(list->buffer));
+	sorted.item = Graph_Alloc(sizeof(char*) * list->num);
+	
+	for (s32 j = 0; j < list->num; j++) {
+		for (s32 i = 0; i < list->num; i++) {
+			if (String_MemMem(list->item[i], tprintf("%d-", j)) == list->item[i]) {
+				sorted.item[sorted.num] = &sorted.buffer[sorted.writePoint];
+				strcpy(sorted.item[sorted.num], list->item[i]);
+				sorted.writePoint += strlen(list->item[i]) + 1;
+				sorted.num++;
+				
+				break;
+			}
+		}
+	}
+	
+	#ifndef NDEBUG
+		printf_debugExt("sorted, %d -> %d", list->num, sorted.num);
+		for (s32 i = 0; i < sorted.num; i++) {
+			printf_debug("%d - %s", i, sorted.item[i]);
+		}
+	#endif
+	
+	*list = sorted;
+}
+
 // printf
 char* tprintf(char* fmt, ...) {
-	static char buffer[16][512];
+	static char buffer[128][512];
 	static u32 id;
 	
 	id = (id + 1) % 16;
@@ -694,7 +733,7 @@ void* Lib_MemMemCase(void* haystack, size_t haystackSize, void* needle, size_t n
 }
 
 void Lib_ByteSwap(void* src, s32 size) {
-	u32 buffer[16] = { 0 };
+	u32 buffer[64] = { 0 };
 	u8* temp = (u8*)buffer;
 	u8* srcp = src;
 	
@@ -1274,7 +1313,7 @@ static void __GetSlashAndPoint(char* src, s32* slash, s32* point) {
 }
 
 char* String_GetLine(char* str, s32 line) {
-	static char buffer[32][512];
+	static char buffer[128][512];
 	static s32 index;
 	s32 iLine = -1;
 	s32 i = 0;
@@ -1309,7 +1348,7 @@ char* String_GetLine(char* str, s32 line) {
 }
 
 char* String_GetWord(char* str, s32 word) {
-	static char buffer[32][512];
+	static char buffer[128][512];
 	static s32 index;
 	s32 iWord = -1;
 	s32 i = 0;
@@ -1344,7 +1383,7 @@ char* String_GetWord(char* str, s32 word) {
 }
 
 char* String_GetPath(char* src) {
-	static char buffer[32][512];
+	static char buffer[128][512];
 	static s32 index;
 	s32 point = 0;
 	s32 slash = 0;
@@ -1364,7 +1403,7 @@ char* String_GetPath(char* src) {
 }
 
 char* String_GetBasename(char* src) {
-	static char buffer[32][512];
+	static char buffer[128][512];
 	static s32 index;
 	s32 point = 0;
 	s32 slash = 0;
@@ -1390,7 +1429,7 @@ char* String_GetBasename(char* src) {
 }
 
 char* String_GetFilename(char* src) {
-	static char buffer[32][512];
+	static char buffer[128][512];
 	static s32 index;
 	s32 point = 0;
 	s32 slash = 0;
@@ -1422,7 +1461,7 @@ char* String_GetFilename(char* src) {
 }
 
 char* String_GetFolder(char* src) {
-	static char buffer[32][512];
+	static char buffer[128][512];
 	static s32 index;
 	s32 point = 0;
 	s32 slashEnd = 0;
@@ -1446,7 +1485,7 @@ char* String_GetFolder(char* src) {
 }
 
 char* String_GetSpacedArg(char* argv[], s32 cur) {
-	static char buffer[32][512];
+	static char buffer[128][512];
 	static s32 index;
 	char tempBuf[512];
 	s32 i = cur + 1;
