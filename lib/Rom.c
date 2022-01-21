@@ -1073,11 +1073,16 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					SwapBE(loop.count);
 					SwapBE(loop.origSpls);
 					smpl.loop = memLoopBook.seekPoint;
-					MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
-					if (loop.count != 0) {
-						MemFile_Clear(dataFile);
-						MemFile_LoadFile(dataFile, Dir_File("%s/loopbook.bin", sample));
-						MemFile_Append(&memLoopBook, dataFile);
+					if (!Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4)) {
+						MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
+						if (loop.count != 0) {
+							MemFile_Clear(dataFile);
+							MemFile_LoadFile(dataFile, Dir_File("%s/loopbook.bin", sample));
+							MemFile_Append(&memLoopBook, dataFile);
+						}
+					} else {
+						void* ptr = Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4);
+						smpl.loop = (uPtr)memLoopBook.data - (uPtr)ptr;
 					}
 					MemFile_Write(&memSample, &smpl, sizeof(struct Sample));
 					smplNum++;
@@ -1146,11 +1151,16 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					SwapBE(loop.count);
 					SwapBE(loop.origSpls);
 					smpl.loop = memLoopBook.seekPoint;
-					MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
-					if (loop.count != 0) {
-						MemFile_Clear(dataFile);
-						MemFile_LoadFile(dataFile, Dir_File("%s/loopbook.bin", sample));
-						MemFile_Append(&memLoopBook, dataFile);
+					if (!Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4)) {
+						MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
+						if (loop.count != 0) {
+							MemFile_Clear(dataFile);
+							MemFile_LoadFile(dataFile, Dir_File("%s/loopbook.bin", sample));
+							MemFile_Append(&memLoopBook, dataFile);
+						}
+					} else {
+						void* ptr = Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4);
+						smpl.loop = (uPtr)memLoopBook.data - (uPtr)ptr;
 					}
 					MemFile_Write(&memSample, &smpl, sizeof(struct Sample));
 					smplNum++;
@@ -1264,11 +1274,17 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					SwapBE(loop.count);
 					SwapBE(loop.origSpls);
 					smpl.loop = memLoopBook.seekPoint;
-					MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
-					if (loop.count != 0) {
-						MemFile_Clear(dataFile);
-						MemFile_LoadFile(dataFile, Dir_File("%s/loopbook.bin", sample));
-						MemFile_Append(&memLoopBook, dataFile);
+					if (!Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4)) {
+						MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
+						if (loop.count != 0) {
+							MemFile_Clear(dataFile);
+							MemFile_LoadFile(dataFile, Dir_File("%s/loopbook.bin", sample));
+							MemFile_Append(&memLoopBook, dataFile);
+						}
+					} else {
+						void* ptr = Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4);
+						
+						smpl.loop = (uPtr)ptr - (uPtr)memLoopBook.data;
 					}
 					MemFile_Write(&memSample, &smpl, sizeof(struct Sample));
 					smplNum++;
