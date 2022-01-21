@@ -376,8 +376,8 @@ extern PrintfSuppressLevel gPrintfSuppress;
 #define MbToBin(x) (u32)(0x100000 * (x))
 #define KbToBin(x) (u32)(0x400 * (x))
 
-#define String_Copy(dst, src)   strcpy(dst, src)
-#define String_Merge(dst, src)  strcat(dst, src)
+// #define strcpy(dst, src)   strcpy(dst, src)
+// #define strcat(dst, src)  strcat(dst, src)
 #define String_SMerge(dst, ...) sprintf(dst + strlen(dst), __VA_ARGS__);
 #define String_Generate(string) strdup(string)
 #define String_IsDiff(a, b)     strcmp(a, b)

@@ -118,4 +118,6 @@ extern const char* gBankName[];
 extern const char* gSequenceName[];
 extern const N64AudioInfo gSampleInfo[];
 
+void fix_crc(unsigned char* rom);
+
 #endif

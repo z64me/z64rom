@@ -124,7 +124,7 @@ void Dir_Enter(char* fmt, ...) {
 		}
 	}
 	
-	String_Merge(sCurrentPath, buffer);
+	strcat(sCurrentPath, buffer);
 	
 	if (sDirParam & DIR__MAKE_ON_ENTER) {
 		Dir_MakeCurrent();
@@ -133,7 +133,7 @@ void Dir_Enter(char* fmt, ...) {
 
 void Dir_Leave(void) {
 	sCurrentPath[strlen(sCurrentPath) - 1] = '\0';
-	String_Copy(sCurrentPath, String_GetPath(sCurrentPath));
+	strcpy(sCurrentPath, String_GetPath(sCurrentPath));
 }
 
 void Dir_Make(char* dir, ...) {
@@ -180,7 +180,7 @@ char* Dir_File(char* fmt, ...) {
 	vsnprintf(argBuf, ArrayCount(argBuf), fmt, args);
 	va_end(args);
 	
-	String_Copy(buffer[bufID], tprintf("%s%s", sCurrentPath, argBuf));
+	strcpy(buffer[bufID], tprintf("%s%s", sCurrentPath, argBuf));
 	
 	return buffer[bufID];
 }
@@ -243,13 +243,13 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 				if (__isDir(Dir_File(entry->d_name))) {
 					if (entry->d_name[0] == '.')
 						continue;
-					String_Copy(&itemList->buffer[itemList->writePoint], tprintf("%s/", entry->d_name));
+					strcpy(&itemList->buffer[itemList->writePoint], tprintf("%s/", entry->d_name));
 					itemList->item[i++] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i - 1]) + 1;
 				}
 			} else {
 				if (!__isDir(Dir_File(entry->d_name))) {
-					String_Copy(&itemList->buffer[itemList->writePoint], tprintf("%s", entry->d_name));
+					strcpy(&itemList->buffer[itemList->writePoint], tprintf("%s", entry->d_name));
 					itemList->item[i++] = &itemList->buffer[itemList->writePoint];
 					itemList->writePoint += strlen(itemList->item[i - 1]) + 1;
 				}
@@ -293,7 +293,7 @@ char* CurWorkDir(void) {
 			buf[i] = '/';
 	}
 	
-	String_Merge(buf, "/");
+	strcat(buf, "/");
 	
 	return buf;
 }
@@ -782,9 +782,9 @@ s32 Lib_ParseArguments(char* argv[], char* arg, u32* parArg) {
 }
 
 u32 Lib_Crc32(u8* s, u32 n) {
-	uint32_t crc = 0xFFFFFFFF;
+	u32 crc = 0xFFFFFFFF;
 	
-	for (size_t i = 0; i < n; i++) {
+	for (u32 i = 0; i < n; i++) {
 		u8 ch = s[i];
 		for (s32 j = 0; j < 8; j++) {
 			u32 b = (ch ^ crc) & 1;
@@ -1455,14 +1455,14 @@ char* String_GetSpacedArg(char* argv[], s32 cur) {
 	index = index % 32;
 	
 	if (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
-		String_Copy(tempBuf, argv[cur]);
+		strcpy(tempBuf, argv[cur]);
 		
 		while (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
-			String_Merge(tempBuf, " ");
-			String_Merge(tempBuf, argv[i++]);
+			strcat(tempBuf, " ");
+			strcat(tempBuf, argv[i++]);
 		}
 		
-		String_Copy(buffer[index], tempBuf);
+		strcpy(buffer[index], tempBuf);
 		
 		return buffer[index];
 	}
@@ -1575,9 +1575,9 @@ s32 String_Replace(char* src, char* word, char* replacement) {
 }
 
 void String_SwapExtension(char* dest, char* src, const char* ext) {
-	String_Copy(dest, String_GetPath(src));
-	String_Merge(dest, String_GetBasename(src));
-	String_Merge(dest, ext);
+	strcpy(dest, String_GetPath(src));
+	strcat(dest, String_GetBasename(src));
+	strcat(dest, ext);
 }
 
 // Config
@@ -1586,7 +1586,12 @@ static char* Config_Get(MemFile* memFile, char* name) {
 	
 	for (s32 i = 0; i < lineCount; i++) {
 		if (!String_IsDiff(String_GetWord(String_GetLine(memFile->data, i), 0), name)) {
-			return String_GetWord(String_Line(memFile->data, i), 2);
+			char* word = String_GetWord(String_Line(memFile->data, i), 2);
+			
+			char* ret = Graph_Alloc(strlen(word));
+			strcpy(ret, word);
+			
+			return ret;
 		}
 	}
 	
