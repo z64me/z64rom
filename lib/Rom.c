@@ -833,6 +833,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		MemFile_Clear(dataFile);
 		MemFile_Clear(config);
 		
+		MemFile_Write(&memInst, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16);
+		
 		SetSegment(0x4, memBank.data);
 		
 		Dir_Enter(itemList.item[i]); {
@@ -887,17 +889,21 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				char* prim = Config_GetString(config, "prim_sample");
 				char* hi = Config_GetString(config, "hi_sample");
 				
-				if (!String_IsDiff(low, "NULL"))
+				if (!memcmp(low, "NULL", 4)) {
 					req--;
-				if (!String_IsDiff(prim, "NULL"))
+					low = NULL;
+				}
+				if (!memcmp(prim, "NULL", 4)) {
 					req--;
-				if (!String_IsDiff(hi, "NULL"))
+					prim = NULL;
+				}
+				if (!memcmp(hi, "NULL", 4)) {
 					req--;
+					hi = NULL;
+				}
 				
 				if (req == 0) {
-					SwapBE(memInst.seekPoint);
 					MemFile_Write(&memBank, "\0\0\0\0", sizeof(u32));
-					SwapBE(memInst.seekPoint);
 					
 					continue;
 				}
@@ -930,18 +936,12 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				instruments.splitHi = Config_GetInt(config, "split_hi");
 				instruments.release = Config_GetInt(config, "release");
 				
-				if ((s16)Config_GetInt(config, "attack_rate") != -1) {
-					confEnv[0].rate = Config_GetInt(config, "attack_rate"); SwapBE(confEnv[0].rate);
-					confEnv[0].level = Config_GetInt(config, "attack_level"); SwapBE(confEnv[0].level);
-					if ((s16)Config_GetInt(config, "hold_rate") != -1) {
-						confEnv[1].rate = Config_GetInt(config, "hold_rate"); SwapBE(confEnv[1].rate);
-						confEnv[1].level = Config_GetInt(config, "hold_level"); SwapBE(confEnv[1].level);
-						if ((s16)Config_GetInt(config, "decay_rate") != -1) {
-							confEnv[2].rate = Config_GetInt(config, "decay_rate"); SwapBE(confEnv[2].rate);
-							confEnv[2].level = Config_GetInt(config, "decay_level"); SwapBE(confEnv[2].level);
-						}
-					}
-				}
+				confEnv[0].rate = Config_GetInt(config, "attack_rate"); SwapBE(confEnv[0].rate);
+				confEnv[0].level = Config_GetInt(config, "attack_level"); SwapBE(confEnv[0].level);
+				confEnv[1].rate = Config_GetInt(config, "hold_rate"); SwapBE(confEnv[1].rate);
+				confEnv[1].level = Config_GetInt(config, "hold_level"); SwapBE(confEnv[1].level);
+				confEnv[2].rate = Config_GetInt(config, "decay_rate"); SwapBE(confEnv[2].rate);
+				confEnv[2].level = Config_GetInt(config, "decay_level"); SwapBE(confEnv[2].level);
 				
 				if (numEnvList == 0) {
 					memcpy(&envList[0], confEnv, 16);
@@ -985,7 +985,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 							break;
 					}
 					
-					if (!String_IsDiff(sample, "NULL"))
+					if (!memcmp(sample, "NULL", 4))
 						continue;
 					
 					MemFile_Clear(dataFile);
@@ -997,7 +997,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					
 					s32 l = 0;
 					for (; l < sSampleTblNum; l++) {
-						if (!String_IsDiff(sSampleTbl[l].name, sample))
+						if (!strcmp(sSampleTbl[l].name, sample))
 							break;
 					}
 					
@@ -1184,18 +1184,12 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				drum.release = Config_GetInt(config, "release");
 				SwapBE(drum.sound.swap32);
 				
-				if ((s16)Config_GetInt(config, "attack_rate") != -1) {
-					confEnv[0].rate = Config_GetInt(config, "attack_rate"); SwapBE(confEnv[0].rate);
-					confEnv[0].level = Config_GetInt(config, "attack_level"); SwapBE(confEnv[0].level);
-					if ((s16)Config_GetInt(config, "hold_rate") != -1) {
-						confEnv[1].rate = Config_GetInt(config, "hold_rate"); SwapBE(confEnv[1].rate);
-						confEnv[1].level = Config_GetInt(config, "hold_level"); SwapBE(confEnv[1].level);
-						if ((s16)Config_GetInt(config, "decay_rate") != -1) {
-							confEnv[2].rate = Config_GetInt(config, "decay_rate"); SwapBE(confEnv[2].rate);
-							confEnv[2].level = Config_GetInt(config, "decay_level"); SwapBE(confEnv[2].level);
-						}
-					}
-				}
+				confEnv[0].rate = Config_GetInt(config, "attack_rate"); SwapBE(confEnv[0].rate);
+				confEnv[0].level = Config_GetInt(config, "attack_level"); SwapBE(confEnv[0].level);
+				confEnv[1].rate = Config_GetInt(config, "hold_rate"); SwapBE(confEnv[1].rate);
+				confEnv[1].level = Config_GetInt(config, "hold_level"); SwapBE(confEnv[1].level);
+				confEnv[2].rate = Config_GetInt(config, "decay_rate"); SwapBE(confEnv[2].rate);
+				confEnv[2].level = Config_GetInt(config, "decay_level"); SwapBE(confEnv[2].level);
 				
 				drum.envelope = numEnvList;
 				
@@ -1409,7 +1403,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		head->entries[i].numDrum = listDrum.num;
 		head->entries[i].numInst = listInst.num;
 		head->entries[i].numSfx = listSfx.num;
-		// head->entries[i].audioTable1 = 0;
+		head->entries[i].audioTable1 = 0;
 		SwapBE(head->entries[i].size);
 		SwapBE(head->entries[i].numSfx);
 	}
