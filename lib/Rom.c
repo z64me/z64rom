@@ -999,18 +999,6 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					smpl.data |= Config_GetInt(dataFile, "bitB") << (32 - 8);
 					SwapBE(smpl.data);
 					
-					switch (k) {
-						case 0:
-							instruments.lo.sample = memSample.seekPoint;
-							break;
-						case 1:
-							instruments.prim.sample = memSample.seekPoint;
-							break;
-						case 2:
-							instruments.hi.sample = memSample.seekPoint;
-							break;
-					}
-					
 					AdpcmLoop loop = {
 						Config_GetInt(dataFile, "loop_start"),
 						Config_GetInt(dataFile, "loop_end"),
@@ -1044,8 +1032,28 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 						void* ptr = Lib_MemMem(memBook.data, memBook.dataSize, dataFile->data, dataFile->dataSize);
 						smpl.book = (uPtr)ptr - (uPtr)memBook.data;
 					}
-					MemFile_Write(&memSample, &smpl, sizeof(struct Sample));
-					smplNum++;
+					
+					u32 addr = memSample.seekPoint;
+					
+					if (!Lib_MemMem(memSample.data, memSample.dataSize, &smpl, sizeof(struct Sample))) {
+						MemFile_Write(&memSample, &smpl, sizeof(struct Sample));
+						smplNum++;
+					} else {
+						void* ptr = Lib_MemMem(memSample.data, memSample.dataSize, &smpl, sizeof(struct Sample));
+						addr = (uPtr)ptr - (uPtr)memSample.data;
+					}
+					
+					switch (k) {
+						case 0:
+							instruments.lo.sample = addr;
+							break;
+						case 1:
+							instruments.prim.sample = addr;
+							break;
+						case 2:
+							instruments.hi.sample = addr;
+							break;
+					}
 				}
 				Dir_Set(restoreDir);
 				
@@ -1131,8 +1139,14 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 						void* ptr = Lib_MemMem(memBook.data, memBook.dataSize, dataFile->data, dataFile->dataSize);
 						smpl.book = (uPtr)ptr - (uPtr)memBook.data;
 					}
-					MemFile_Write(&memSample, &smpl, sizeof(struct Sample));
-					smplNum++;
+					sfx.sample = memSample.seekPoint;
+					if (!Lib_MemMem(memSample.data, memSample.dataSize, &smpl, sizeof(struct Sample))) {
+						MemFile_Write(&memSample, &smpl, sizeof(struct Sample));
+						smplNum++;
+					} else {
+						void* ptr = Lib_MemMem(memSample.data, memSample.dataSize, &smpl, sizeof(struct Sample));
+						sfx.sample = (uPtr)ptr - (uPtr)memSample.data;
+					}
 				} Dir_Set(restoreDir);
 				
 				MemFile_Write(&memSfx, &sfx, sizeof(struct Sound));
@@ -1248,8 +1262,16 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 						void* ptr = Lib_MemMem(memBook.data, memBook.dataSize, dataFile->data, dataFile->dataSize);
 						smpl.book = (uPtr)ptr - (uPtr)memBook.data;
 					}
-					MemFile_Write(&memSample, &smpl, sizeof(struct Sample));
-					smplNum++;
+					
+					drum.sound.sample = memSample.seekPoint;
+					if (!Lib_MemMem(memSample.data, memSample.dataSize, &smpl, sizeof(struct Sample))) {
+						MemFile_Write(&memSample, &smpl, sizeof(struct Sample));
+						smplNum++;
+					} else {
+						void* ptr = Lib_MemMem(memSample.data, memSample.dataSize, &smpl, sizeof(struct Sample));
+						drum.sound.sample = (uPtr)ptr - (uPtr)memSample.data;
+					}
+					
 					MemFile_Clear(config);
 					MemFile_LoadFile(config, currentConf);
 				} Dir_Set(restoreDir);
