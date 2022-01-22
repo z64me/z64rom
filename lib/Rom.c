@@ -105,7 +105,7 @@ static void Rom_Config_Instrument(Rom* rom, MemFile* config, Instrument* instrum
 	u32 val;
 	f32* f = (f32*)&val;
 	Instrument tempI = { .splitHi = 127 };
-	Adsr tempE[4] = { { -1, 0 }, 0 };
+	Adsr tempE[4] = { { -1, 0 }, { 0 }, { 0 }, { 0 } };
 	
 	if (instrument == NULL) {
 		env = tempE;
@@ -184,10 +184,21 @@ static void Rom_Config_Sfx(Rom* rom, MemFile* config, Sound* sfx, char* name, ch
 	MemFile_SaveFile_String(config, out);
 }
 
-static void Rom_Config_Drum(Rom* rom, MemFile* config, Drum* drum, char* name, char* out, u32 off) {
+static void Rom_Config_Drum(Rom* rom, MemFile* config, u32 drumSeg, char* name, char* out, u32 off) {
+	Drum* drum;
 	u32 val;
-	Adsr* env = SegmentedToVirtual(0x1, ReadBE(drum->envelope));
+	Adsr* env;
 	f32* f = (f32*)&val;
+	Drum emDrum = { 0 };
+	Adsr emEnv[4] = { { -1, 0 }, { 0 }, { 0 }, { 0 } };
+	
+	if (drumSeg == 0) {
+		drum = &emDrum;
+		env = emEnv;
+	} else {
+		drum = SegmentedToVirtual(0x1, ReadBE(drumSeg));
+		env = SegmentedToVirtual(0x1, ReadBE(drum->envelope));
+	}
 	
 	MemFile_Clear(config);
 	Config_WriteTitle_Str("Drum");
@@ -249,7 +260,6 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	SoundFont* bank;
 	Instrument* instrument;
 	Sound* sfx;
-	Drum* drum;
 	u32 off = 0;
 	
 	printf_debugExt_align("Entry Num", "%d", num);
@@ -345,13 +355,7 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 						printf_progress("drum", j + 1, entry->numDrum);
 				#endif
 				
-				if (wow[j] == 0) {
-					continue;
-				}
-				
-				drum = SegmentedToVirtual(0x1, ReadBE(wow[j]));
-				
-				Rom_Config_Drum(rom, config, drum, "Drum", output, off);
+				Rom_Config_Drum(rom, config, wow[j], "Drum", output, off);
 				strcpy(sBankFiles[sBankNum++], output);
 				Assert(sBankNum < 1024 * 5);
 			}
@@ -843,11 +847,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		SetSegment(0x4, memBank.data);
 		
 		Dir_Enter(itemList.item[i]); {
-			u32 numEnvList = 0;
-			u16* envIndex;
-			
 			u32 smplNum = 0;
-			Adsr* envList;
 			char* restoreDir = Graph_Alloc(strlen(Dir_Current()));
 			
 			strcpy(restoreDir, Dir_Current());
@@ -875,9 +875,6 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			
 			MemFile_Write(&memBank, "\0\0\0\0", 4);
 			MemFile_Write(&memBank, "\0\0\0\0", 4);
-			
-			envIndex = Graph_Alloc(2 * listInst.num);
-			envList = Graph_Alloc(16 * listInst.num);
 			
 			for (s32 j = 0; j < listInst.num; j++) {
 				char* restoreDir = Graph_Alloc(strlen(Dir_Current()));
@@ -1143,16 +1140,11 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			
 			MemFile_Params(&memDrum, MEM_CLEAR, MEM_END);
 			for (s32 j = 0; j < listDrum.num; j++) {
-				u32 val = 0x10 * j;
-				MemFile_Write(&memDrum, &val, 4);
+				MemFile_Write(&memDrum, "\0\0\0\0", 4);
 			}
 			
 			MemFile_Align(&memDrum, 16);
 			MemFile_Params(&memDrum, MEM_ALIGN, 16, MEM_END);
-			
-			for (s32 j = 0; j < listDrum.num; j++) {
-				memDrum.cast.u32[j] += memDrum.seekPoint;
-			}
 			
 			for (s32 j = 0; j < listDrum.num; j++) {
 				char* restoreDir = Graph_Alloc(strlen(Dir_Current()));
@@ -1166,13 +1158,12 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				MemFile_Clear(config);
 				MemFile_LoadFile(config, Dir_File("drum/%s", listDrum.item[j]));
 				
-				if (!String_IsDiff(Config_GetString(config, "prim_sample"), "NULL")) {
+				if (!memcmp(Config_GetString(config, "prim_sample"), "NULL", 4)) {
 					memDrum.cast.u32[j] = 0;
-					for (s32 k = j + 1; k < listDrum.num; k++) {
-						memDrum.cast.u32[k] -= 0x10;
-					}
 					
 					continue;
+				} else {
+					memDrum.cast.u32[j] = memDrum.seekPoint;
 				}
 				
 				drum.sound.tuning = Config_GetFloat(config, "prim_tuning");
@@ -1291,7 +1282,6 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					continue;
 				SetSegment(0x5, memDrum.data);
 				Drum* drum = SegmentedToVirtual(0x5, memDrum.cast.u32[j]);
-				u32 envID = drum->envelope;
 				
 				drum->envelope += memBank.seekPoint;
 				SwapBE(drum->envelope);
@@ -1368,6 +1358,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			
 			if (listDrum.num) {
 				for (s32 j = 0; j < listDrum.num; j++) {
+					if (memDrum.cast.u32[j] == 0)
+						continue;
 					memDrum.cast.u32[j] += memBank.seekPoint;
 					SwapBE(memDrum.cast.u32[j]);
 				}
