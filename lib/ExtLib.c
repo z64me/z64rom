@@ -189,27 +189,37 @@ char* Dir_File(char* fmt, ...) {
 	va_list args;
 	
 	bufID++;
-	bufID = bufID % 16;
+	bufID = bufID % 128;
 	
-	if (!String_MemMem(fmt, "*")) {
-		va_start(args, fmt);
-		vsnprintf(argBuf, ArrayCount(argBuf), fmt, args);
-		va_end(args);
-		
-		strcpy(buffer[bufID], tprintf("%s%s", sCurrentPath, argBuf));
-		
-		return buffer[bufID];
-	} else {
+	va_start(args, fmt);
+	vsnprintf(argBuf, ArrayCount(argBuf), fmt, args);
+	va_end(args);
+	
+	strcpy(buffer[bufID], tprintf("%s%s", sCurrentPath, argBuf));
+	
+	if (String_MemMem(buffer[bufID], "*")) {
 		ItemList list;
 		char buf[512] = { 0 };
+		char* restorePath = Graph_Alloc(strlen(sCurrentPath));
+		char* search = String_MemMem(fmt, "*");
+		char* posPath = String_GetPath(buffer[bufID]);
+		
+		strcpy(buf, &search[1]);
+		strcpy(restorePath, sCurrentPath);
+		
+		if (strcmp(posPath, restorePath)) {
+			Dir_Set(String_GetPath(buffer[bufID]));
+		}
 		
 		Dir_ItemList(&list, false);
 		
-		strcpy(buf, String_MemMem(fmt, "*") + 1);
+		if (strcmp(posPath, restorePath)) {
+			Dir_Set(restorePath);
+		}
 		
 		for (s32 i = 0; i < list.num; i++) {
 			if (String_MemMem(list.item[i], buf)) {
-				strcpy(buffer[bufID], tprintf("%s%s", sCurrentPath, list.item[i]));
+				strcpy(buffer[bufID], tprintf("%s%s", posPath, list.item[i]));
 				
 				return buffer[bufID];
 			}
@@ -217,6 +227,8 @@ char* Dir_File(char* fmt, ...) {
 		
 		return NULL;
 	}
+	
+	return buffer[bufID];
 }
 
 s32 Dir_Stat(char* dir) {
@@ -266,6 +278,8 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 		}
 	}
 	
+	closedir(dir);
+	
 	if (itemList->num) {
 		u32 i = 0;
 		dir = opendir(sCurrentPath);
@@ -289,6 +303,7 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 				}
 			}
 		}
+		closedir(dir);
 	}
 }
 
@@ -1115,6 +1130,60 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 	struct stat sta;
 	
 	if (file == NULL) {
+		printf_debug("Failed to fopen file [%s].", filepath);
+		
+		return 1;
+	}
+	
+	printf_debugExt_align("File", "%s", filepath);
+	
+	fseek(file, 0, SEEK_END);
+	tempSize = ftell(file);
+	
+	if (memFile->data == NULL) {
+		MemFile_Malloc(memFile, tempSize);
+		memFile->memSize = memFile->dataSize = tempSize;
+		if (memFile->data == NULL) {
+			printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
+			
+			return 1;
+		}
+	} else {
+		if (memFile->memSize < tempSize)
+			MemFile_Realloc(memFile, tempSize * 2);
+		memFile->dataSize = tempSize;
+	}
+	
+	rewind(file);
+	if (fread(memFile->data, 1, memFile->dataSize, file)) {
+	}
+	fclose(file);
+	stat(filepath, &sta);
+	memFile->info.age = sta.st_mtime;
+	
+	if (memFile->param.getName != 0) {
+		memFile->info.name = Graph_Alloc(strlen(filepath));
+		strcpy(memFile->info.name, filepath);
+	}
+	
+	if (memFile->param.getCrc) {
+		memFile->info.crc32 = Lib_Crc32(memFile->data, memFile->dataSize);
+	}
+	
+	#ifndef NDEBUG
+		printf_debug_align("Ptr", "%08X", memFile->data);
+		printf_debug_align("Size", "%08X", memFile->dataSize);
+	#endif
+	
+	return 0;
+}
+
+s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
+	u32 tempSize;
+	FILE* file = fopen(filepath, "r");
+	struct stat sta;
+	
+	if (file == NULL) {
 		printf_warning("Failed to fopen file [%s].", filepath);
 		
 		return 1;
@@ -1147,9 +1216,8 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 	memFile->info.age = sta.st_mtime;
 	
 	if (memFile->param.getName != 0) {
-		if (memFile->info.name)
-			free(memFile->info.name);
-		memFile->info.name = String_Generate(filepath);
+		memFile->info.name = Graph_Alloc(strlen(filepath));
+		strcpy(memFile->info.name, filepath);
 	}
 	
 	if (memFile->param.getCrc) {
@@ -1159,60 +1227,6 @@ s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {
 	#ifndef NDEBUG
 		printf_debug_align("Ptr", "%08X", memFile->data);
 		printf_debug_align("Size", "%08X", memFile->dataSize);
-	#endif
-	
-	return 0;
-}
-
-s32 MemFile_LoadFile_String(MemFile* memFile, char* filepath) {
-	u32 tempSize;
-	FILE* file = fopen(filepath, "r");
-	struct stat sta;
-	
-	if (file == NULL) {
-		printf_warning("Failed to fopen file [%s].", filepath);
-		
-		return 1;
-	}
-	
-	printf_debugExt("File: [%s]", filepath);
-	
-	fseek(file, 0, SEEK_END);
-	tempSize = ftell(file);
-	
-	if (memFile->data == NULL) {
-		MemFile_Malloc(memFile, tempSize);
-		memFile->memSize = memFile->dataSize = tempSize;
-		if (memFile->data == NULL) {
-			printf_warning("Failed to malloc MemFile.\n\tAttempted size is [0x%X] bytes to store data from [%s].", tempSize, filepath);
-			
-			return 1;
-		}
-	} else {
-		MemFile_Realloc(memFile, tempSize);
-		memFile->dataSize = tempSize;
-	}
-	
-	rewind(file);
-	if (fread(memFile->data, 1, memFile->dataSize, file)) {
-	}
-	fclose(file);
-	stat(filepath, &sta);
-	memFile->info.age = sta.st_mtime;
-	
-	if (memFile->param.getName != 0) {
-		if (memFile->info.name)
-			free(memFile->info.name);
-		memFile->info.name = String_Generate(filepath);
-	}
-	
-	if (memFile->param.getCrc) {
-		memFile->info.crc32 = Lib_Crc32(memFile->data, memFile->dataSize);
-	}
-	
-	#ifndef NDEBUG
-		printf_debug("Ptr: %08X", memFile->data);
-		printf_debug("Size: %08X", memFile->dataSize);
 	#endif
 	
 	return 0;
@@ -1275,8 +1289,6 @@ s32 MemFile_SaveFile_ReqExt(MemFile* memFile, char* filepath, s32 size, const ch
 
 void MemFile_Free(MemFile* memFile) {
 	if (memFile->data) {
-		if (memFile->info.name)
-			free(memFile->info.name);
 		free(memFile->data);
 		
 		memset(memFile, 0, sizeof(struct MemFile));
@@ -1352,7 +1364,7 @@ char* String_GetLine(char* str, s32 line) {
 	s32 j = 0;
 	
 	index++;
-	index = index % 32;
+	index = index % 128;
 	
 	while (str[i] != '\0') {
 		j = 0;
@@ -1387,7 +1399,7 @@ char* String_GetWord(char* str, s32 word) {
 	s32 j = 0;
 	
 	index++;
-	index = index % 32;
+	index = index % 128;
 	
 	while (str[i] != '\0') {
 		j = 0;
@@ -1421,7 +1433,7 @@ char* String_GetPath(char* src) {
 	s32 slash = 0;
 	
 	index++;
-	index = index % 32;
+	index = index % 128;
 	
 	__GetSlashAndPoint(src, &slash, &point);
 	
@@ -1443,7 +1455,7 @@ char* String_GetBasename(char* src) {
 	__GetSlashAndPoint(src, &slash, &point);
 	
 	index++;
-	index = index % 32;
+	index = index % 128;
 	
 	// Offset away from the slash
 	if (slash > 0)
@@ -1470,7 +1482,7 @@ char* String_GetFilename(char* src) {
 	__GetSlashAndPoint(src, &slash, &point);
 	
 	index++;
-	index = index % 32;
+	index = index % 128;
 	
 	// Offset away from the slash
 	if (slash > 0)
@@ -1500,7 +1512,7 @@ char* String_GetFolder(char* src) {
 	s32 slashStart = 0;
 	
 	index++;
-	index = index % 32;
+	index = index % 128;
 	
 	__GetSlashAndPoint(src, &slashEnd, &point);
 	
@@ -1522,7 +1534,7 @@ char* String_GetSpacedArg(char* argv[], s32 cur) {
 	s32 i = cur + 1;
 	
 	index++;
-	index = index % 32;
+	index = index % 128;
 	
 	if (argv[i] && argv[i][0] != '-' && argv[i][1] != '-') {
 		strcpy(tempBuf, argv[cur]);
@@ -1651,7 +1663,7 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 }
 
 // Config
-static char* Config_Get(MemFile* memFile, char* name) {
+char* Config_Get(MemFile* memFile, char* name) {
 	u32 lineCount = String_GetLineCount(memFile->data);
 	
 	for (s32 i = 0; i < lineCount; i++) {

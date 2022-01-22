@@ -254,6 +254,7 @@ s32 String_Replace(char* src, char* word, char* replacement);
 void String_SwapExtension(char* dest, char* src, const char* ext);
 char* String_GetSpacedArg(char* argv[], s32 cur);
 
+char* Config_Get(MemFile* memFile, char* name);
 s32 Config_GetBool(MemFile* memFile, char* boolName);
 s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]);
 s32 Config_GetInt(MemFile* memFile, char* intName);
