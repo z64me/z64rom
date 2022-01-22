@@ -1466,7 +1466,6 @@ char* String_GetFolder(char* src) {
 	s32 point = 0;
 	s32 slashEnd = 0;
 	s32 slashStart = 0;
-	s32 ext = 0;
 	
 	index++;
 	index = index % 32;

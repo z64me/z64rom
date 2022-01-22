@@ -39,8 +39,8 @@ typedef struct Sound {
 } Sound; // size = 0x8
 
 typedef struct Adsr {
-	u16 rate;
-	u16 level;
+	s16 rate;
+	s16 level;
 } Adsr; // size = 0x4
 
 typedef struct Instrument {

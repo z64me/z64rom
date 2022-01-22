@@ -12,6 +12,7 @@ char* sToolUsage = {
 	EXT_INFO("--i",  12, "Input")
 	EXT_INFO("--D",  12, "Debug Print")
 };
+s32 gExtractAudio = 0;
 
 s32 Main(s32 argc, char* argv[]) {
 	char* input = NULL;
@@ -22,6 +23,9 @@ s32 Main(s32 argc, char* argv[]) {
 		printf_WinFix();
 	#endif
 	printf_SetPrefix("");
+	
+	if (ParArg("--A"))
+		gExtractAudio = true;
 	
 	if (ParArg("--D"))
 		printf_SetSuppressLevel(PSL_DEBUG);
