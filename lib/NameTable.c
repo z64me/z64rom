@@ -1044,8 +1044,8 @@ const char* gBankName[] = {
 };
 
 const char* gSequenceName[] = {
-	"Nothing",
-	"Nothing",
+	"MasterSequence",
+	"NatureAmbience",
 	"HyruleField",
 	"HyruleField",
 	"HyruleField",
@@ -1153,5 +1153,9 @@ const char* gSequenceName[] = {
 	"EndCreditsIV",
 	"VolvagiaBossBattle",
 	"Mini-Game",
+	"Nothing",
+	"Nothing",
+	"Nothing",
+	"Nothing",
 	"Nothing",
 };

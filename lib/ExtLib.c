@@ -138,8 +138,17 @@ void Dir_Enter(char* fmt, ...) {
 }
 
 void Dir_Leave(void) {
+	#ifndef NDEBUG
+		char compBuffer[512];
+		strcpy(compBuffer, sCurrentPath);
+	#endif
+	
 	sCurrentPath[strlen(sCurrentPath) - 1] = '\0';
 	strcpy(sCurrentPath, String_GetPath(sCurrentPath));
+	
+	#ifndef NDEBUG
+		printf_debug("[%s] -> [%s]", compBuffer, sCurrentPath);
+	#endif
 }
 
 void Dir_Make(char* dir, ...) {
@@ -182,13 +191,32 @@ char* Dir_File(char* fmt, ...) {
 	bufID++;
 	bufID = bufID % 16;
 	
-	va_start(args, fmt);
-	vsnprintf(argBuf, ArrayCount(argBuf), fmt, args);
-	va_end(args);
-	
-	strcpy(buffer[bufID], tprintf("%s%s", sCurrentPath, argBuf));
-	
-	return buffer[bufID];
+	if (!String_MemMem(fmt, "*")) {
+		va_start(args, fmt);
+		vsnprintf(argBuf, ArrayCount(argBuf), fmt, args);
+		va_end(args);
+		
+		strcpy(buffer[bufID], tprintf("%s%s", sCurrentPath, argBuf));
+		
+		return buffer[bufID];
+	} else {
+		ItemList list;
+		char buf[512] = { 0 };
+		
+		Dir_ItemList(&list, false);
+		
+		strcpy(buf, String_MemMem(fmt, "*") + 1);
+		
+		for (s32 i = 0; i < list.num; i++) {
+			if (String_MemMem(list.item[i], buf)) {
+				strcpy(buffer[bufID], tprintf("%s%s", sCurrentPath, list.item[i]));
+				
+				return buffer[bufID];
+			}
+		}
+		
+		return NULL;
+	}
 }
 
 s32 Dir_Stat(char* dir) {
@@ -1267,7 +1295,11 @@ u32 String_GetHexInt(char* string) {
 }
 
 s32 String_GetInt(char* string) {
-	return strtol(string, NULL, 10);
+	if (!memcmp(string, "0x", 2)) {
+		return strtol(string, NULL, 16);
+	} else {
+		return strtol(string, NULL, 10);
+	}
 }
 
 f32 String_GetFloat(char* string) {

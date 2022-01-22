@@ -371,39 +371,46 @@ static void Rom_Dump_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 
 static void Rom_Dump_Sequences(Rom* rom, MemFile* dataFile, MemFile* config) {
 	AudioEntryHead* head = SegmentedToVirtual(0x0, rom->offset.table.seqTable);
-	u16* seqFontTable;
+	u8* seqFontTable;
+	u16* segFontOffTable;
 	SoundFontEntry* entry;
 	RomFile romFile;
 	u32 num = ReadBE(head->numEntries);
 	
-	Dir_Enter("sequence/");
-	SetSegment(0x1, SegmentedToVirtual(0x0, rom->offset.table.seqFontTbl));
-	
-	MemFile_Clear(config);
-	for (s32 i = 0; i < num; i++) {
-		seqFontTable = SegmentedToVirtual(0x0, rom->offset.table.seqFontTbl);
-		entry = &head->entries[i];
-		romFile.data = SegmentedToVirtual(0x0, ReadBE(entry->romAddr) + rom->offset.segment.seqRom);
-		romFile.size = ReadBE(entry->size);
+	Dir_Enter("sequence/"); {
+		SetSegment(0x1, SegmentedToVirtual(0x0, rom->offset.table.seqFontTbl));
 		
-		if (romFile.size == 0)
-			continue;
+		MemFile_Clear(config);
+		for (s32 i = 0; i < num; i++) {
+			Dir_Enter("0x%02X-%s/", i, gSequenceName[i]); {
+				printf_progress("Sequence", i + 1, num);
+				segFontOffTable = SegmentedToVirtual(0x0, rom->offset.table.seqFontTbl);
+				entry = &head->entries[i];
+				romFile.data = SegmentedToVirtual(0x0, ReadBE(entry->romAddr) + rom->offset.segment.seqRom);
+				romFile.size = ReadBE(entry->size);
+				
+				MemFile_Clear(config);
+				Config_WriteTitle_Str(gSequenceName[i]);
+				seqFontTable = SegmentedToVirtual(0x1, ReadBE(segFontOffTable[i]));
+				
+				Config_WriteVar_Int("bank_num", ReadBE(seqFontTable[0]));
+				for (s32 i = 0; i < ReadBE(seqFontTable[0]); i++) {
+					char* title = tprintf("bank_id_%d", i);
+					Config_WriteVar_Hex(title, ReadBE(seqFontTable[i + 1]) & 0xFF);
+				}
+				
+				if (romFile.size != 0) {
+					Rom_Extract(dataFile, romFile, Dir_File("%s.seq", gSequenceName[i]));
+				} else {
+					Config_WriteVar_Hex("seq_pointer", ReadBE(entry->romAddr));
+				}
+				
+				MemFile_SaveFile_String(config, Dir_File("config.cfg"));
+			} Dir_Leave();
+		}
 		
-		printf_progress("Sequence", i + 1, num);
-		Rom_Extract(dataFile, romFile, Dir_File("0x%02X-%s.seq", i, gSequenceName[i]));
-		
-		seqFontTable = SegmentedToVirtual(0x1, ReadBE(seqFontTable[i]));
-		
-		Config_WriteTitle_Str(gSequenceName[i]);
-		Config_WriteVar_Hex("sequence_id", i);
-		Config_WriteVar_Hex("bank_id", ReadBE(seqFontTable[0]) & 0xFF);
-		Config_SPrintf("\n");
-	}
-	MemFile_SaveFile_String(config, Dir_File("config.cfg"));
-	
-	SetSegment(0x1, NULL);
-	
-	Dir_Leave();
+		SetSegment(0x1, NULL);
+	} Dir_Leave();
 }
 
 static void Rom_Dump_Samples_PatchWavFiles(MemFile* dataFile, MemFile* config) {
@@ -797,6 +804,11 @@ struct {
 } sSampleTbl[1024 * 5];
 s32 sSampleTblNum;
 
+struct {
+	u8 bankIndex;
+} sFontTable[255];
+u32 sFontTableNum;
+
 static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	ItemList itemList;
 	MemFile memBank = MemFile_Initialize();
@@ -825,6 +837,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	head->numEntries = itemList.num;
 	SwapBE(head->numEntries);
 	
+	sFontTableNum = itemList.num;
+	
 	for (s32 i = 0; i < itemList.num; i++) {
 		ItemList listInst = { 0 };
 		ItemList listSfx = { 0 };
@@ -845,6 +859,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		MemFile_Write(&memInst, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16);
 		
 		SetSegment(0x4, memBank.data);
+		
+		sFontTable[i].bankIndex = String_GetHexInt(itemList.item[i]);
 		
 		Dir_Enter(itemList.item[i]); {
 			u32 smplNum = 0;
@@ -1479,6 +1495,75 @@ static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) 
 	MemFile_Free(&sample);
 }
 
+static void Rom_Build_Sequence(Rom* rom, MemFile* dataFile, MemFile* config) {
+	ItemList itemList;
+	AudioEntryHead* head = SegmentedToVirtual(0x0, rom->offset.table.seqTable);
+	MemFile memIndexTable = MemFile_Initialize();
+	MemFile memLookUpTable = MemFile_Initialize();
+	u8* segFontTable = SegmentedToVirtual(0x0, rom->offset.table.seqFontTbl);
+	
+	for (s32 i = 0; i < 0x1C0; i++) {
+		segFontTable[i] = 0;
+	}
+	
+	MemFile_Malloc(&memIndexTable, 0x1C0);
+	MemFile_Malloc(&memLookUpTable, 0x1C0);
+	MemFile_Params(dataFile, MEM_CLEAR, MEM_END);
+	MemFile_Params(config, MEM_CLEAR, MEM_END);
+	
+	rom->file.seekPoint = rom->offset.segment.seqRom;
+	
+	Dir_ItemList(&itemList, true);
+	
+	for (s32 i = 0; i < itemList.num; i++) {
+		printf_progress("Append Sequences", i + 1, itemList.num);
+		u32 addr;
+		u8 fontNum;
+		
+		Dir_Enter(itemList.item[i]); {
+			MemFile_Clear(dataFile);
+			MemFile_Clear(config);
+			
+			MemFile_LoadFile(config, Dir_File("config.cfg"));
+			
+			if (head->entries[i].size) {
+				MemFile_LoadFile(dataFile, Dir_File("*.seq"));
+				addr = rom->file.seekPoint - rom->offset.segment.seqRom;
+				MemFile_Append(&rom->file, dataFile);
+				MemFile_Align(&rom->file, 16);
+				head->entries[i].romAddr = ReadBE(addr);
+				head->entries[i].size = ReadBE(dataFile->dataSize);
+			} else {
+				head->entries[i].romAddr = Config_GetInt(config, "seq_pointer");
+				head->entries[i].size = 0;
+				SwapBE(head->entries[i].romAddr);
+			}
+			
+			u16 offset = memIndexTable.seekPoint;
+			MemFile_Write(&memLookUpTable, &offset, 2);
+			
+			fontNum = Config_GetInt(config, "bank_num");
+			MemFile_Write(&memIndexTable, &fontNum, 1);
+			for (s32 j = 0; j < fontNum; j++) {
+				char* title = tprintf("bank_id_%d", j);
+				u8 bankId = Config_GetInt(config, title);
+				MemFile_Write(&memIndexTable, &bankId, 1);
+			}
+		} Dir_Leave();
+	}
+	
+	u16 add = memLookUpTable.seekPoint;
+	
+	for (s32 i = 0; i < itemList.num; i++) {
+		memLookUpTable.cast.u16[i] += add;
+		SwapBE(memLookUpTable.cast.u16[i]);
+	}
+	MemFile_Append(&memLookUpTable, &memIndexTable);
+	
+	rom->file.seekPoint = rom->offset.table.seqFontTbl;
+	MemFile_Append(&rom->file, &memLookUpTable);
+}
+
 void Rom_Build(Rom* rom) {
 	MemFile dataFile = MemFile_Initialize();
 	MemFile config = MemFile_Initialize();
@@ -1494,6 +1579,10 @@ void Rom_Build(Rom* rom) {
 			
 			Dir_Enter("soundfont/"); {
 				Rom_Build_SoundFont(rom, &dataFile, &config);
+			} Dir_Leave();
+			
+			Dir_Enter("sequence/"); {
+				Rom_Build_Sequence(rom, &dataFile, &config);
 			} Dir_Leave();
 		} Dir_Leave();
 	} Dir_Leave();
