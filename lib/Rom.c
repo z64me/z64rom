@@ -896,10 +896,9 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				
 				if (req == 0) {
 					SwapBE(memInst.seekPoint);
-					MemFile_Write(&memBank, &memInst.seekPoint, sizeof(u32));
+					MemFile_Write(&memBank, "\0\0\0\0", sizeof(u32));
 					SwapBE(memInst.seekPoint);
 					
-					MemFile_Write(&memInst, &instruments, sizeof(struct Instrument));
 					continue;
 				}
 				
@@ -1293,6 +1292,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			
 			MemFile_Align(&memBank, 16);
 			for (s32 j = 0; j < listInst.num; j++) {
+				if (memBank.cast.u32[2 + j] == 0)
+					continue;
 				SwapBE(memBank.cast.u32[2 + j]);
 				memBank.cast.u32[2 + j] += memBank.seekPoint;
 				SwapBE(memBank.cast.u32[2 + j]);
@@ -1301,6 +1302,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			MemFile_Align(&memBank, 16);
 			
 			for (s32 j = 0; j < listInst.num; j++) {
+				if (memBank.cast.u32[2 + j] == 0)
+					continue;
 				Instrument* inst = SegmentedToVirtual(0x4, ReadBE(memBank.cast.u32[2 + j]));
 				
 				inst->envelope = memBank.seekPoint + sizeof(struct Adsr) * 4 * envIndex[j];
@@ -1339,6 +1342,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			MemFile_Align(&memBank, 16);
 			
 			for (s32 j = 0; j < listInst.num; j++) {
+				if (memBank.cast.u32[2 + j] == 0)
+					continue;
 				Instrument* inst = SegmentedToVirtual(0x4, ReadBE(memBank.cast.u32[2 + j]));
 				
 				if (inst->lo.tuning) {
