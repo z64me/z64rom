@@ -55,20 +55,12 @@ typedef struct Instrument {
 } Instrument; // size >= 0x20
 
 typedef struct Drum {
-	u8    release;
-	u8    pan;
-	u8    loaded;
-	Sound sound;
-	Adsr  envelope[]; // AdsrEnvelopePoint*
-} Drum; // size >= 0x14
-
-typedef struct DrumAlt {
 	u8     release;
 	u8     pan;
 	u8     loaded;
 	Sound  sound;
 	void32 envelope;
-} DrumAlt; // size >= 0x14
+} Drum; // size >= 0x14
 
 typedef struct SoundFont {
 	void32 drums;

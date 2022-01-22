@@ -100,18 +100,18 @@ s32 sSortID;
 	Config_WriteVar_Str(# wow "_tuning", "NULL");
 
 static void Rom_Config_Instrument(Rom* rom, MemFile* config, Instrument* instrument, char* name, char* out, u32 off) {
-	Adsr* envelope;
+	Adsr* env;
 	Sample* sample;
 	u32 val;
 	f32* f = (f32*)&val;
 	Instrument tempI = { .splitHi = 127 };
-	Adsr tempE[4] = { { -1, 0 }, { -1, 0 }, { -1, 0 }, { -1, 0 } };
+	Adsr tempE[4] = { { -1, 0 }, 0 };
 	
 	if (instrument == NULL) {
-		envelope = tempE;
+		env = tempE;
 		instrument = &tempI;
 	} else {
-		envelope = SegmentedToVirtual(0x1, ReadBE(instrument->envelope));
+		env = SegmentedToVirtual(0x1, ReadBE(instrument->envelope));
 	}
 	
 	MemFile_Clear(config);
@@ -122,12 +122,14 @@ static void Rom_Config_Instrument(Rom* rom, MemFile* config, Instrument* instrum
 	
 	Config_SPrintf("\n");
 	Config_WriteTitle_Str("Envelope");
-	Config_WriteVar_Int("attack_rate", ReadBE(envelope[0].rate));
-	Config_WriteVar_Int("attack_level", ReadBE(envelope[0].level));
-	Config_WriteVar_Int("hold_rate", ReadBE(envelope[1].rate));
-	Config_WriteVar_Int("hold_level", ReadBE(envelope[1].level));
-	Config_WriteVar_Int("decay_rate", ReadBE(envelope[2].rate));
-	Config_WriteVar_Int("decay_level", ReadBE(envelope[2].level));
+	Config_WriteVar_Int("attack_rate", ReadBE(env[0].rate));
+	Config_WriteVar_Int("attack_level", ReadBE(env[0].level));
+	Config_WriteVar_Int("hold_rate", ReadBE(env[1].rate));
+	Config_WriteVar_Int("hold_level", ReadBE(env[1].level));
+	Config_WriteVar_Int("decay_rate", ReadBE(env[2].rate));
+	Config_WriteVar_Int("decay_level", ReadBE(env[2].level));
+	Config_WriteVar_Int("decay2_rate", ReadBE(env[3].rate));
+	Config_WriteVar_Int("decay2_level", ReadBE(env[3].level));
 	Config_WriteVar_Int("release", instrument->release);
 	
 	Config_SPrintf("\n");
@@ -184,6 +186,7 @@ static void Rom_Config_Sfx(Rom* rom, MemFile* config, Sound* sfx, char* name, ch
 
 static void Rom_Config_Drum(Rom* rom, MemFile* config, Drum* drum, char* name, char* out, u32 off) {
 	u32 val;
+	Adsr* env = SegmentedToVirtual(0x1, ReadBE(drum->envelope));
 	f32* f = (f32*)&val;
 	
 	MemFile_Clear(config);
@@ -193,12 +196,14 @@ static void Rom_Config_Drum(Rom* rom, MemFile* config, Drum* drum, char* name, c
 	
 	Config_SPrintf("\n");
 	Config_WriteTitle_Str("Envelope");
-	Config_WriteVar_Int("attack_rate", ReadBE(drum->envelope[0].rate));
-	Config_WriteVar_Int("attack_level", ReadBE(drum->envelope[0].level));
-	Config_WriteVar_Int("hold_rate", ReadBE(drum->envelope[1].rate));
-	Config_WriteVar_Int("hold_level", ReadBE(drum->envelope[1].level));
-	Config_WriteVar_Int("decay_rate", ReadBE(drum->envelope[2].rate));
-	Config_WriteVar_Int("decay_level", ReadBE(drum->envelope[2].level));
+	Config_WriteVar_Int("attack_rate", ReadBE(env[0].rate));
+	Config_WriteVar_Int("attack_level", ReadBE(env[0].level));
+	Config_WriteVar_Int("hold_rate", ReadBE(env[1].rate));
+	Config_WriteVar_Int("hold_level", ReadBE(env[1].level));
+	Config_WriteVar_Int("decay_rate", ReadBE(env[2].rate));
+	Config_WriteVar_Int("decay_level", ReadBE(env[2].level));
+	Config_WriteVar_Int("decay2_rate", ReadBE(env[3].rate));
+	Config_WriteVar_Int("decay2_level", ReadBE(env[3].level));
 	Config_WriteVar_Int("release", drum->release);
 	
 	Config_SPrintf("\n");
@@ -942,28 +947,16 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				confEnv[1].level = Config_GetInt(config, "hold_level"); SwapBE(confEnv[1].level);
 				confEnv[2].rate = Config_GetInt(config, "decay_rate"); SwapBE(confEnv[2].rate);
 				confEnv[2].level = Config_GetInt(config, "decay_level"); SwapBE(confEnv[2].level);
+				confEnv[3].rate = Config_GetInt(config, "decay2_rate"); SwapBE(confEnv[3].rate);
+				confEnv[3].level = Config_GetInt(config, "decay2_level"); SwapBE(confEnv[3].level);
 				
-				if (numEnvList == 0) {
-					memcpy(&envList[0], confEnv, 16);
-					envIndex[numEnvList] = numEnvList;
-					MemFile_Write(&memEnv, &envList[numEnvList * 4], sizeof(struct Adsr) * 4);
-					numEnvList++;
+				instruments.envelope = memEnv.seekPoint;
+				if (!Lib_MemMem(memEnv.data, memEnv.dataSize, confEnv, 0x10)) {
+					MemFile_Write(&memEnv, confEnv, 0x10);
+					MemFile_Align(&memEnv, 16);
 				} else {
-					u32 new = 1;
-					for (s32 k = 0; k < numEnvList; k++) {
-						if (memcmp(&envList[k * 4], confEnv, 16) == 0) {
-							envIndex[numEnvList] = k;
-							new = 0;
-							break;
-						}
-					}
-					
-					if (new) {
-						memcpy(&envList[numEnvList * 4], confEnv, 16);
-						envIndex[numEnvList] = numEnvList;
-						MemFile_Write(&memEnv, &envList[numEnvList * 4], sizeof(struct Adsr) * 4);
-						numEnvList++;
-					}
+					void* ptr = Lib_MemMem(memEnv.data, memEnv.dataSize, confEnv, 0x10);
+					instruments.envelope = (uPtr)ptr - (uPtr)memEnv.data;
 				}
 				
 				Dir_Leave(); // soundfont/
@@ -1163,8 +1156,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			
 			for (s32 j = 0; j < listDrum.num; j++) {
 				char* restoreDir = Graph_Alloc(strlen(Dir_Current()));
-				DrumAlt drum = { 0 };
-				Adsr confEnv[4] = { { -1, 0 }, { -1, 0 }, { -1, 0 }, { -1, 0 } };
+				Drum drum = { 0 };
+				Adsr confEnv[4] = { 0 };
 				char currentConf[512];
 				
 				strcpy(currentConf, Dir_File("drum/%s", listDrum.item[j]));
@@ -1174,7 +1167,11 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				MemFile_LoadFile(config, Dir_File("drum/%s", listDrum.item[j]));
 				
 				if (!String_IsDiff(Config_GetString(config, "prim_sample"), "NULL")) {
-					MemFile_Write(&memDrum, &drum, sizeof(struct DrumAlt));
+					memDrum.cast.u32[j] = 0;
+					for (s32 k = j + 1; k < listDrum.num; k++) {
+						memDrum.cast.u32[k] -= 0x10;
+					}
+					
 					continue;
 				}
 				
@@ -1190,30 +1187,16 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				confEnv[1].level = Config_GetInt(config, "hold_level"); SwapBE(confEnv[1].level);
 				confEnv[2].rate = Config_GetInt(config, "decay_rate"); SwapBE(confEnv[2].rate);
 				confEnv[2].level = Config_GetInt(config, "decay_level"); SwapBE(confEnv[2].level);
+				confEnv[3].rate = Config_GetInt(config, "decay2_rate"); SwapBE(confEnv[3].rate);
+				confEnv[3].level = Config_GetInt(config, "decay2_level"); SwapBE(confEnv[3].level);
 				
-				drum.envelope = numEnvList;
-				
-				if (numEnvList == 0) {
-					memcpy(&envList[0], confEnv, 16);
-					envIndex[numEnvList] = numEnvList;
-					MemFile_Write(&memEnv, &envList[numEnvList * 4], sizeof(struct Adsr) * 4);
-					numEnvList++;
+				drum.envelope = memEnv.seekPoint;
+				if (!Lib_MemMem(memEnv.data, memEnv.dataSize, confEnv, 0x10)) {
+					MemFile_Write(&memEnv, confEnv, 0x10);
+					MemFile_Align(&memEnv, 16);
 				} else {
-					u32 new = 1;
-					for (s32 k = 0; k < numEnvList; k++) {
-						if (memcmp(&envList[k * 4], confEnv, 16) == 0) {
-							envIndex[numEnvList] = k;
-							new = 0;
-							break;
-						}
-					}
-					
-					if (new) {
-						memcpy(&envList[numEnvList * 4], confEnv, 16);
-						envIndex[numEnvList] = numEnvList;
-						MemFile_Write(&memEnv, &envList[numEnvList * 4], sizeof(struct Adsr) * 4);
-						numEnvList++;
-					}
+					void* ptr = Lib_MemMem(memEnv.data, memEnv.dataSize, confEnv, 0x10);
+					drum.envelope = (uPtr)ptr - (uPtr)memEnv.data;
 				}
 				
 				Dir_Leave(); // soundfont/
@@ -1280,7 +1263,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					MemFile_LoadFile(config, currentConf);
 				} Dir_Set(restoreDir);
 				
-				MemFile_Write(&memDrum, &drum, sizeof(struct DrumAlt));
+				MemFile_Write(&memDrum, &drum, sizeof(struct Drum));
 				MemFile_Align(&memDrum, 16);
 			}
 			
@@ -1300,16 +1283,17 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					continue;
 				Instrument* inst = SegmentedToVirtual(0x4, ReadBE(memBank.cast.u32[2 + j]));
 				
-				inst->envelope = memBank.seekPoint + sizeof(struct Adsr) * 4 * envIndex[j];
-				
+				inst->envelope += memBank.seekPoint;
 				SwapBE(inst->envelope);
 			}
 			for (s32 j = 0; j < listDrum.num; j++) {
+				if (memDrum.cast.u32[j] == 0)
+					continue;
 				SetSegment(0x5, memDrum.data);
-				DrumAlt* drum = SegmentedToVirtual(0x5, memDrum.cast.u32[j]);
+				Drum* drum = SegmentedToVirtual(0x5, memDrum.cast.u32[j]);
 				u32 envID = drum->envelope;
 				
-				drum->envelope = memBank.seekPoint + sizeof(struct Adsr) * 4 * envIndex[envID];
+				drum->envelope += memBank.seekPoint;
 				SwapBE(drum->envelope);
 			}
 			MemFile_Append(&memBank, &memEnv);
@@ -1363,8 +1347,10 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 			}
 			
 			for (s32 j = 0; j < listDrum.num; j++) {
+				if (memDrum.cast.u32[j] == 0)
+					continue;
 				SetSegment(0x5, memDrum.data);
-				DrumAlt* drum = SegmentedToVirtual(0x5, (memDrum.cast.u32[j]));
+				Drum* drum = SegmentedToVirtual(0x5, (memDrum.cast.u32[j]));
 				
 				drum->sound.sample += memBank.seekPoint;
 				SwapBE(drum->sound.sample);
