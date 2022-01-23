@@ -1,5 +1,7 @@
 # z64rom
 
+#### [Download latest build](https://github.com/z64tools/z64rom/releases)
+
 ### Build
 
 The first step is to dump the rom. This will be done with drag and dropping the `[.z64]` rom file on to `z64rom` application. After that you can perform build just by opening `z64rom` application.
