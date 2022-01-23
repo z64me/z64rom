@@ -1,9 +1,8 @@
 #include "lib/z64rom.h"
 
-char* sToolName = PRNT_PRPL "z64rom " PRNT_GRAY "0.1 alpha";
-
 void CheckTypes();
 
+char* sToolName = PRNT_PRPL "z64rom " PRNT_GRAY "0.1 alpha";
 char* sToolUsage = {
 	EXT_INFO_TITLE("Usage:")
 	EXT_INFO("Dump", 12, "DragNDrop [.z64] to z64rom executable")
@@ -12,7 +11,7 @@ char* sToolUsage = {
 	EXT_INFO("--i",  12, "Input")
 	EXT_INFO("--D",  12, "Debug Print")
 };
-s32 gExtractAudio = 0;
+s32 gExtractAudio = true;
 
 s32 Main(s32 argc, char* argv[]) {
 	char* input = NULL;
@@ -25,7 +24,7 @@ s32 Main(s32 argc, char* argv[]) {
 	printf_SetPrefix("");
 	
 	if (ParArg("--A"))
-		gExtractAudio = true;
+		gExtractAudio = false;
 	
 	if (ParArg("--D"))
 		printf_SetSuppressLevel(PSL_DEBUG);
