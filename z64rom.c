@@ -29,6 +29,24 @@ s32 Main(s32 argc, char* argv[]) {
 	if (ParArg("--D"))
 		printf_SetSuppressLevel(PSL_DEBUG);
 	
+	char* confFile = tprintf("%s%s", CurWorkDir(), "tools/z64audio.cfg");
+	
+	if (!Stat(confFile)) {
+		MemFile config = MemFile_Initialize();
+		#ifndef _WIN32
+			if (system("./tools/z64audio --GenCfg --S") != 65) printf_error("Could not run z64audio");
+		#else
+			if (system("tools\\z64audio.exe --GenCfg --S") != 65) printf_error("Could not run z64audio");
+		#endif
+		
+		MemFile_LoadFile_String(&config, confFile);
+		
+		String_Replace(config.data, "zaudio_z64rom_mode = false", "zaudio_z64rom_mode = true");
+		config.dataSize = strlen(config.data);
+		MemFile_SaveFile_String(&config, "tools/z64audio.cfg");
+		MemFile_Free(&config);
+	}
+	
 	CheckTypes();
 	
 	if (Lib_ParseArguments(argv, "--i", &parArg))

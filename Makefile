@@ -70,6 +70,7 @@ clean:
 	@echo "$(PRNT_RSET)rm $(PRNT_RSET)[$(PRNT_CYAN)$(shell find z64ro* -type f -not -name '*.c*')$(PRNT_RSET)]"
 	@rm -f $(shell find z64ro* -type f -not -name '*.c')
 	@rm -f -R bin/*
+	@rm -f tools/*
 
 # LINUX
 bin/linux/ndebug/%.o: %.c %.h $(HEADER)

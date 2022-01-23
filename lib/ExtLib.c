@@ -34,7 +34,6 @@ char* sPrintfPreType[][4] = {
 		">"
 	}
 };
-DirParam sDirParam;
 u8 sGraphBuffer[MbToBin(128)];
 u32 sGraphSize = 0x10;
 time_t sTime;
@@ -100,12 +99,22 @@ u32 Graph_GetSize(void* ptr) {
 }
 
 // Dir
+
+struct {
+	struct {
+		s32 enterCount[512];
+		s32 pos;
+	} swap[2];
+	DirParam param;
+	s32 swapId;
+} sDir;
+
 void Dir_SetParam(DirParam w) {
-	sDirParam |= w;
+	sDir.param |= w;
 }
 
 void Dir_UnsetParam(DirParam w) {
-	sDirParam &= ~(w);
+	sDir.param &= ~(w);
 }
 
 void Dir_Set(char* path, ...) {
@@ -125,31 +134,47 @@ void Dir_Enter(char* fmt, ...) {
 	vsnprintf(buffer, ArrayCount(buffer), fmt, args);
 	va_end(args);
 	
-	if (!(sDirParam & DIR__MAKE_ON_ENTER)) {
+	if (!(sDir.param & DIR__MAKE_ON_ENTER)) {
 		if (!Dir_Stat(buffer)) {
 			printf_error("Could not enter folder [%s%s]", sCurrentPath, buffer);
 		}
 	}
 	
+	sDir.swap[sDir.swapId].pos++;
+	sDir.swap[sDir.swapId].enterCount[sDir.swap[sDir.swapId].pos] = 0;
+	for (s32 i = 0; i < strlen(buffer); i++) {
+		if (buffer[i] == '/' || buffer[i] == '\\')
+			sDir.swap[sDir.swapId].enterCount[sDir.swap[sDir.swapId].pos]++;
+	}
+	
+	#ifndef NDEBUG
+		printf_debugExt("ENT [%s] -> [%s]", sCurrentPath, buffer);
+	#endif
+	
 	strcat(sCurrentPath, buffer);
 	
-	if (sDirParam & DIR__MAKE_ON_ENTER) {
+	if (sDir.param & DIR__MAKE_ON_ENTER) {
 		Dir_MakeCurrent();
 	}
 }
 
 void Dir_Leave(void) {
-	#ifndef NDEBUG
-		char compBuffer[512];
-		strcpy(compBuffer, sCurrentPath);
-	#endif
+	s32 count = sDir.swap[sDir.swapId].enterCount[sDir.swap[sDir.swapId].pos];
 	
-	sCurrentPath[strlen(sCurrentPath) - 1] = '\0';
-	strcpy(sCurrentPath, String_GetPath(sCurrentPath));
-	
-	#ifndef NDEBUG
-		printf_debug("[%s] -> [%s]", compBuffer, sCurrentPath);
-	#endif
+	for (s32 i = 0; i < count; i++) {
+		#ifndef NDEBUG
+			char compBuffer[512];
+			strcpy(compBuffer, sCurrentPath);
+		#endif
+		
+		sCurrentPath[strlen(sCurrentPath) - 1] = '\0';
+		strcpy(sCurrentPath, String_GetPath(sCurrentPath));
+		
+		#ifndef NDEBUG
+			printf_debugExt("LEA [%s] -> [%s]", compBuffer, sCurrentPath);
+		#endif
+	}
+	sDir.swap[sDir.swapId].pos--;
 }
 
 void Dir_Make(char* dir, ...) {
@@ -164,19 +189,7 @@ void Dir_Make(char* dir, ...) {
 }
 
 void Dir_MakeCurrent(void) {
-	struct stat st = { 0 };
-	
-	if (stat(sCurrentPath, &st) == -1) {
-		#ifdef _WIN32
-			if (mkdir(sCurrentPath)) {
-				printf_error_align("mkdir", "%s", sCurrentPath);
-			}
-		#else
-			if (mkdir(sCurrentPath, 0700)) {
-				printf_error_align("mkdir", "%s", sCurrentPath);
-			}
-		#endif
-	}
+	MakeDir(sCurrentPath);
 }
 
 char* Dir_Current(void) {
@@ -293,14 +306,16 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 					if (entry->d_name[0] == '.')
 						continue;
 					strcpy(&itemList->buffer[itemList->writePoint], tprintf("%s/", entry->d_name));
-					itemList->item[i++] = &itemList->buffer[itemList->writePoint];
-					itemList->writePoint += strlen(itemList->item[i - 1]) + 1;
+					itemList->item[i] = &itemList->buffer[itemList->writePoint];
+					itemList->writePoint += strlen(itemList->item[i]) + 1;
+					i++;
 				}
 			} else {
 				if (!__isDir(Dir_File(entry->d_name))) {
 					strcpy(&itemList->buffer[itemList->writePoint], tprintf("%s", entry->d_name));
-					itemList->item[i++] = &itemList->buffer[itemList->writePoint];
-					itemList->writePoint += strlen(itemList->item[i - 1]) + 1;
+					itemList->item[i] = &itemList->buffer[itemList->writePoint];
+					itemList->writePoint += strlen(itemList->item[i]) + 1;
+					i++;
 				}
 			}
 		}
@@ -308,14 +323,17 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 	}
 }
 
-void MakeDir(char* dir, ...) {
+s32 Stat(char* x) {
 	struct stat st = { 0 };
-	char buffer[512];
 	
-	va_list args;
+	if (stat(x, &st) == -1)
+		return 0;
 	
-	va_start(args, dir);
-	vsnprintf(buffer, ArrayCount(buffer), dir, args);
+	return 1;
+}
+
+static void __MakeDir(const char* buffer) {
+	struct stat st = { 0 };
 	
 	if (stat(buffer, &st) == -1) {
 		#ifdef _WIN32
@@ -328,7 +346,35 @@ void MakeDir(char* dir, ...) {
 			}
 		#endif
 	}
+}
+
+void MakeDir(const char* dir, ...) {
+	char buffer[512];
+	s32 pathNum;
+	va_list args;
+	
+	va_start(args, dir);
+	vsnprintf(buffer, ArrayCount(buffer), dir, args);
 	va_end(args);
+	
+	pathNum = String_GetPathNum(buffer);
+	
+	if (pathNum == 1) {
+		__MakeDir(buffer);
+	} else {
+		for (s32 i = 0; i < pathNum; i++) {
+			char tempBuff[512];
+			char* folder = String_GetFolder(buffer, 0);
+			
+			strcpy(tempBuff, folder);
+			for (s32 j = 1; j < i + 1; j++) {
+				folder = String_GetFolder(buffer, j);
+				strcat(tempBuff, folder);
+			}
+			
+			__MakeDir(tempBuff);
+		}
+	}
 }
 
 char* CurWorkDir(void) {
@@ -1025,7 +1071,7 @@ s32 MemFile_Write(MemFile* dest, void* src, u32 size) {
 		if (!dest->param.realloc) {
 			printf_warning_align(
 				"MemSize exceeded",
-				"%fkB / %fkB",
+				"%.2fkB / %.2fkB",
 				BinToKb(dest->dataSize),
 				BinToKb(dest->memSize)
 			);
@@ -1058,7 +1104,7 @@ s32 MemFile_Append(MemFile* dest, MemFile* src) {
 		if (!dest->param.realloc) {
 			printf_warning_align(
 				"MemSize exceeded",
-				"%fkB / %fkB",
+				"%.2fkB / %.2fkB",
 				BinToKb(dest->dataSize),
 				BinToKb(dest->memSize)
 			);
@@ -1350,7 +1396,7 @@ s32 String_CaseComp(char* a, char* b, u32 compSize) {
 	return 0;
 }
 
-static void __GetSlashAndPoint(char* src, s32* slash, s32* point) {
+static void __GetSlashAndPoint(const char* src, s32* slash, s32* point) {
 	s32 strSize = strlen(src);
 	
 	for (s32 i = strSize; i > 0; i--) {
@@ -1364,7 +1410,7 @@ static void __GetSlashAndPoint(char* src, s32* slash, s32* point) {
 	}
 }
 
-char* String_GetLine(char* str, s32 line) {
+char* String_GetLine(const char* str, s32 line) {
 	static char buffer[128][512];
 	static s32 index;
 	s32 iLine = -1;
@@ -1399,7 +1445,7 @@ char* String_GetLine(char* str, s32 line) {
 	return buffer[index];
 }
 
-char* String_GetWord(char* str, s32 word) {
+char* String_GetWord(const char* str, s32 word) {
 	static char buffer[128][512];
 	static s32 index;
 	s32 iWord = -1;
@@ -1434,7 +1480,7 @@ char* String_GetWord(char* str, s32 word) {
 	return buffer[index];
 }
 
-char* String_GetPath(char* src) {
+char* String_GetPath(const char* src) {
 	static char buffer[128][512];
 	static s32 index;
 	s32 point = 0;
@@ -1454,7 +1500,7 @@ char* String_GetPath(char* src) {
 	return buffer[index];
 }
 
-char* String_GetBasename(char* src) {
+char* String_GetBasename(const char* src) {
 	static char buffer[128][512];
 	static s32 index;
 	s32 point = 0;
@@ -1480,7 +1526,7 @@ char* String_GetBasename(char* src) {
 	return buffer[index];
 }
 
-char* String_GetFilename(char* src) {
+char* String_GetFilename(const char* src) {
 	static char buffer[128][512];
 	static s32 index;
 	s32 point = 0;
@@ -1512,25 +1558,49 @@ char* String_GetFilename(char* src) {
 	return buffer[index];
 }
 
-char* String_GetFolder(char* src) {
+s32 String_GetPathNum(const char* src) {
+	s32 dir = -1;
+	
+	for (s32 i = 0; i < strlen(src); i++) {
+		if (src[i] == '/')
+			dir++;
+	}
+	
+	return dir + 1;
+}
+
+char* String_GetFolder(const char* src, s32 num) {
 	static char buffer[128][512];
 	static s32 index;
-	s32 point = 0;
-	s32 slashEnd = 0;
-	s32 slashStart = 0;
+	s32 start = -1;
+	s32 end;
 	
 	index++;
 	index = index % 128;
 	
-	__GetSlashAndPoint(src, &slashEnd, &point);
+	if (num < 0) {
+		num = String_GetPathNum(src) - 1;
+	}
 	
-	slashStart = slashEnd - 1;
+	for (s32 temp = 0;;) {
+		if (temp >= num)
+			break;
+		if (src[start + 1] == '/')
+			temp++;
+		start++;
+	}
+	start++;
+	end = start + 1;
 	
-	while (src[slashStart - 1] != '/')
-		slashStart--;
+	while (src[end] != '/') {
+		if (src[end] == '\0')
+			printf_error("Could not solve folder for [%s]", src);
+		end++;
+	}
+	end++;
 	
-	memcpy(buffer[index], &src[slashStart], slashEnd - slashStart);
-	buffer[index][slashEnd - slashStart] = '\0';
+	memcpy(buffer[index], &src[start], end - start);
+	buffer[index][end - start] = '\0';
 	
 	return buffer[index];
 }
