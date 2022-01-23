@@ -6,6 +6,8 @@
 
 The first step is to dump the rom. This will be done with drag and dropping the `[.z64]` rom file on to `z64rom` application. After that you can perform build just by opening `z64rom` application.
 
+Currently this supports only debug fully. You can dump u1.0, but it has some issues where some samples are lost completely because there is currently only [debug sample name table](https://github.com/z64tools/z64rom/blob/main/lib/NameAudio.c) in the code
+
 ### Converting Samples
 
 `z64audio` utilizes extra info carried by sample formats like `WAV` and `AIFF`. Such information being `instrument information`, like `basenote`, `finetune` and `loop region`.
