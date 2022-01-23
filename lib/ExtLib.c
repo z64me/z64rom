@@ -37,6 +37,7 @@ char* sPrintfPreType[][4] = {
 DirParam sDirParam;
 u8 sGraphBuffer[MbToBin(128)];
 u32 sGraphSize = 0x10;
+time_t sTime;
 
 // Segment
 void SetSegment(const u8 id, void* segment) {
@@ -1122,6 +1123,13 @@ s32 MemFile_Read(MemFile* src, void* dest, u32 size) {
 	src->seekPoint += size;
 	
 	return 0;
+}
+
+void MemFile_Seek(MemFile* src, u32 seek) {
+	if (seek > src->memSize) {
+		printf_error("!");
+	}
+	src->seekPoint = seek;
 }
 
 s32 MemFile_LoadFile(MemFile* memFile, char* filepath) {

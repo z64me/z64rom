@@ -810,6 +810,84 @@ struct {
 } sFontTable[255];
 u32 sFontTableNum;
 
+static void Rom_Build_SetAudioSegment(Rom* rom) {
+	u16* addr;
+	u16 hi, lo;
+	
+	addr = SegmentedToVirtual(0x0, 0xB5A4AE);
+	lo = rom->offset.segment.seqRom;
+	hi = (rom->offset.segment.seqRom >> 16) + (lo > 0x7FFF);
+	addr[0] = ReadBE(hi);
+	addr[2] = ReadBE(lo);
+	printf_debug_align("SequenceRom", "%08X", rom->offset.segment.seqRom);
+	
+	addr = SegmentedToVirtual(0x0, 0xB5A4C2);
+	lo = rom->offset.segment.fontRom;
+	hi = (rom->offset.segment.fontRom >> 16) + (lo > 0x7FFF);
+	addr[0] = ReadBE(hi);
+	addr[2] = ReadBE(lo);
+	printf_debug_align("FontRom", "%08X", rom->offset.segment.fontRom);
+	
+	addr = SegmentedToVirtual(0x0, 0xB5A4D6);
+	lo = rom->offset.segment.smplRom;
+	hi = (rom->offset.segment.smplRom >> 16) + (lo > 0x7FFF);
+	addr[0] = ReadBE(hi);
+	addr[2] = ReadBE(lo);
+	printf_debug_align("SampleRom", "%08X", rom->offset.segment.smplRom);
+}
+
+static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) {
+	ItemList itemList;
+	MemFile sample = MemFile_Initialize();
+	
+	MemFile_Malloc(&sample, MbToBin(0.25));
+	MemFile_Clear(dataFile);
+	Dir_ItemList(&itemList, true);
+	MemFile_Params(dataFile, MEM_ALIGN, 16, MEM_END);
+	
+	for (s32 i = 0; i < itemList.num; i++) {
+		MemFile_Clear(config);
+		MemFile_Clear(&sample);
+		
+		Dir_Enter(itemList.item[i]); {
+			char* file = Dir_File("*.vadpcm.bin");
+			char* cfg = Dir_File("config.cfg");
+			
+			printf_progress("Append Sample", i + 1, itemList.num);
+			
+			if (MemFile_LoadFile(&sample, file))
+				printf_error_align("Failed to load file", "%s", file);
+			
+			if (MemFile_LoadFile(config, cfg))
+				printf_error_align("Failed to load file", "%s", cfg);
+			
+			if (Config_Get(config, "tuning")) {
+				sSampleTbl[sSampleTblNum].tuninOverride = Config_GetFloat(config, "tuning");
+			}
+			
+			sSampleTbl[sSampleTblNum].segment = dataFile->seekPoint;
+			sSampleTbl[sSampleTblNum].size = sample.dataSize;
+			strcpy(sSampleTbl[sSampleTblNum++].name, String_GetFolder(file));
+			MemFile_Append(dataFile, &sample);
+		} Dir_Leave();
+	}
+	
+	AudioEntryHead* head = SegmentedToVirtual(0x0, rom->offset.table.sampleTable);
+	
+	head->numEntries = 1;
+	SwapBE(head->numEntries);
+	for (s32 i = 0; i < 7 ; i++) {
+		head->entries[i].romAddr = 0;
+		head->entries[i].size = ReadBE(dataFile->dataSize);
+	}
+	
+	rom->offset.segment.smplRom = rom->file.seekPoint;
+	MemFile_Append(&rom->file, dataFile);
+	MemFile_Align(&rom->file, 16);
+	MemFile_Free(&sample);
+	MemFile_Params(dataFile, MEM_CLEAR, MEM_END);
+}
+
 static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	ItemList itemList;
 	MemFile memBank = MemFile_Initialize();
@@ -822,7 +900,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	MemFile memDrum = MemFile_Initialize();
 	AudioEntryHead* head = SegmentedToVirtual(0x0, rom->offset.table.fontTable);
 	
-	rom->file.seekPoint = rom->offset.segment.fontRom;
+	rom->offset.segment.fontRom = rom->file.seekPoint;
 	
 	MemFile_Malloc(&memBank, MbToBin(0.25));
 	MemFile_Malloc(&memBook, MbToBin(0.25));
@@ -1456,58 +1534,6 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	MemFile_Free(&memDrum);
 }
 
-static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) {
-	ItemList itemList;
-	MemFile sample = MemFile_Initialize();
-	
-	MemFile_Malloc(&sample, MbToBin(0.25));
-	MemFile_Clear(dataFile);
-	Dir_ItemList(&itemList, true);
-	MemFile_Params(dataFile, MEM_ALIGN, 16, MEM_END);
-	
-	for (s32 i = 0; i < itemList.num; i++) {
-		MemFile_Clear(config);
-		MemFile_Clear(&sample);
-		
-		Dir_Enter(itemList.item[i]); {
-			char* file = Dir_File("*.vadpcm.bin");
-			char* cfg = Dir_File("config.cfg");
-			
-			printf_progress("Append Sample", i + 1, itemList.num);
-			
-			if (MemFile_LoadFile(&sample, file))
-				printf_error_align("Failed to load file", "%s", file);
-			
-			if (MemFile_LoadFile(config, cfg))
-				printf_error_align("Failed to load file", "%s", cfg);
-			
-			if (Config_Get(config, "tuning")) {
-				sSampleTbl[sSampleTblNum].tuninOverride = Config_GetFloat(config, "tuning");
-			}
-			
-			sSampleTbl[sSampleTblNum].segment = dataFile->seekPoint;
-			sSampleTbl[sSampleTblNum].size = sample.dataSize;
-			strcpy(sSampleTbl[sSampleTblNum++].name, String_GetFolder(file));
-			MemFile_Append(dataFile, &sample);
-		} Dir_Leave();
-	}
-	
-	rom->file.seekPoint = rom->offset.segment.smplRom;
-	
-	AudioEntryHead* head = SegmentedToVirtual(0x0, rom->offset.table.sampleTable);
-	
-	head->numEntries = 1;
-	SwapBE(head->numEntries);
-	for (s32 i = 0; i < 7 ; i++) {
-		head->entries[i].romAddr = 0;
-		head->entries[i].size = ReadBE(dataFile->dataSize);
-	}
-	
-	MemFile_Append(&rom->file, dataFile);
-	MemFile_Free(&sample);
-	MemFile_Params(dataFile, MEM_CLEAR, MEM_END);
-}
-
 static void Rom_Build_Sequence(Rom* rom, MemFile* dataFile, MemFile* config) {
 	ItemList itemList;
 	AudioEntryHead* head = SegmentedToVirtual(0x0, rom->offset.table.seqTable);
@@ -1522,7 +1548,7 @@ static void Rom_Build_Sequence(Rom* rom, MemFile* dataFile, MemFile* config) {
 	MemFile_Malloc(&memIndexTable, 0x1C0);
 	MemFile_Malloc(&memLookUpTable, 0x1C0);
 	
-	rom->file.seekPoint = rom->offset.segment.seqRom;
+	rom->offset.segment.seqRom = rom->file.seekPoint;
 	
 	Dir_ItemList(&itemList, true);
 	
@@ -1571,7 +1597,7 @@ static void Rom_Build_Sequence(Rom* rom, MemFile* dataFile, MemFile* config) {
 	}
 	MemFile_Append(&memLookUpTable, &memIndexTable);
 	
-	rom->file.seekPoint = rom->offset.table.seqFontTbl;
+	MemFile_Seek(&rom->file, rom->offset.table.seqFontTbl);
 	MemFile_Append(&rom->file, &memLookUpTable);
 }
 
@@ -1582,6 +1608,8 @@ void Rom_Build(Rom* rom) {
 	MemFile_Malloc(&dataFile, 0x460000);
 	MemFile_Malloc(&config, 0x25000);
 	MemFile_Params(&config, MEM_FILENAME, true, MEM_END);
+	
+	MemFile_Seek(&rom->file, 0x35D0000);
 	
 	Dir_Enter("rom/"); {
 		Dir_Enter("sound/"); {
@@ -1598,6 +1626,8 @@ void Rom_Build(Rom* rom) {
 			} Dir_Leave();
 		} Dir_Leave();
 	} Dir_Leave();
+	
+	Rom_Build_SetAudioSegment(rom);
 	
 	fix_crc(rom->file.data);
 	MemFile_SaveFile(&rom->file, "build.z64");
