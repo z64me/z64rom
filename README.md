@@ -1,5 +1,9 @@
 # z64rom
 
+### Build
+
+The first step is to dump the rom. This will be done with drag and dropping the `[.z64]` rom file on to `z64rom` application. After that you can perform build just by opening `z64rom` application.
+
 ### Converting Samples
 
 `z64audio` utilizes extra info carried by sample formats like `WAV` and `AIFF`. Such information being `instrument information`, like `basenote`, `finetune` and `loop region`.
@@ -32,3 +36,7 @@ This tuning value is calculated by using the `samplerate` and `basenote + finetu
 tuning          = 0.684600
 ```
 In this case `z64rom` will rely on the tuning values inside the `SoundFont instruments`.
+
+### Bugs?
+
+Join Hylian Modding discord and contact me `rankaisija#1105`
