@@ -44,3 +44,8 @@ In this case `z64rom` will rely on the tuning values inside the `SoundFont instr
 ### Bugs?
 
 Join Hylian Modding discord and contact me `rankaisija#1105`
+
+## Credits
+`Zeldaboy14` -  Testing \
+`sklitte22` -  Sample documenting \
+`Sauraen` - Special Thanks, helping with various details \

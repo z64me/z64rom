@@ -942,6 +942,7 @@ static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) 
 	MemFile_Clear(dataFile);
 	Rom_ItemList(&itemList, true, false, false);
 	MemFile_Params(dataFile, MEM_ALIGN, 16, MEM_END);
+	MemFile_Params(dataFile, MEM_REALLOC, true, MEM_END);
 	
 	for (s32 i = 0; i < itemList.num; i++) {
 		MemFile_Clear(config);

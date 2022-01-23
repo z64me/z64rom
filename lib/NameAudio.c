@@ -408,13 +408,13 @@ const N64AudioInfo gSampleInfo[] = {
 	/* 404 */ { 32000, 0, NULL, "Perc_EthnicMute" },
 	/* 405 */ { 32000, 0, NULL, "Perc_Gong" },
 	/* 406 */ { 32000, 0, NULL, "Perc_WindChime" },
-	/* 407 */ { 16000, 0, NULL, "Perc_BentDrum" },
+	/* 407 */ { 32000, 0, NULL, "Perc_CongaOpen" },
 	/* 408 */ { 32000, 0, NULL, "Inst_WoodChime" },
 	/* 409 */ { 32000, 0, NULL, "Inst_VoicePad" },
 	/* 410 */ { 32000, 0, NULL, "Inst_ChantFlute_Low" },
 	/* 411 */ { 32000, 0, NULL, "Inst_ChantFlute_Prim" },
 	/* 412 */ { 32000, 0, NULL, "Inst_ChantFlute_Hi" },
-	/* 413 */ { 32000, 0, NULL, "Perc_CongaOpen" },
+	/* 413 */ { 0, 0, &gSampleInfo[407], "Perc_CongaOpen" }, // Dublicate
 	/* 414 */ { 32000, 0, NULL, "Perc_CongaSoft" },
 	/* 415 */ { 32000, 0, NULL, "Perc_CongaMute" },
 	/* 416 */ { 32000, 0, NULL, "Perc_Shaker" },
@@ -437,8 +437,8 @@ const N64AudioInfo gSampleInfo[] = {
 	/* 433 */ { 32000, 0, NULL, "Perc_CajonSnare" },
 	/* 434 */ { 32000, 0, NULL, "Inst_SynthPad" },
 	/* 435 */ { 16000, 0, NULL, "Inst_Creek" },
-	/* 436 */ { 0, 0, &gSampleInfo[407], "Perc_BentDrum" }, // Dublicate
-	/* 437 */ { 0, 0, &gSampleInfo[413], "Perc_CongaOpen" }, // Dublicate
+	/* 436 */ { 16000, 0, NULL, "Perc_BentDrum" }, // Dublicate
+	/* 437 */ { 0, 0, &gSampleInfo[407], "Perc_CongaOpen" }, // Dublicate
 	/* 438 */ { 0, 0, &gSampleInfo[415], "Perc_CongaMute" }, // Dublicate
 	/* 439 */ { 0, 0, &gSampleInfo[423], "Perc_CuicaA" }, // Dublicate
 	/* 440 */ { 0, 0, &gSampleInfo[424], "Perc_CuicaB" }, // Dublicate
