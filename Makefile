@@ -29,6 +29,7 @@ $(shell mkdir -p bin/ $(foreach dir, \
 	$(dir $(RELEASE_EXECUTABLE_WIN32)) \
 	$(dir $(SOURCE_O_RELEASE_WIN32)) \
 	$(dir $(SOURCE_O_RELEASE_LINUX)), $(dir)))
+$(shell mkdir -p tools/)
 
 ifeq (,$(wildcard ../z64audio/Makefile))
 	$(shell clone https://github.com/z64tools/z64audio.git ../z64audio)
