@@ -1,6 +1,8 @@
 # z64rom
 
-#### [Download latest build](https://github.com/z64tools/z64rom/releases)
+##### For questions and feature requests [join z64tools discord](https://discord.gg/52DgAggYAT)!
+
+##### [Download z64rom here!](https://github.com/z64tools/z64rom/releases)
 
 ### Build
 
@@ -41,11 +43,7 @@ tuning          = 0.684600
 ```
 In this case `z64rom` will rely on the tuning values inside the `SoundFont instruments`.
 
-### Bugs?
-
-Join Hylian Modding discord and contact me `rankaisija#1105`
-
 ## Credits
 `Zeldaboy14` -  Testing \
 `sklitte22` -  Sample documenting \
-`Sauraen` - Special Thanks, helping with various details \
+`Sauraen` - Special Thanks, helping with various details

@@ -41,7 +41,7 @@ s32 Main(s32 argc, char* argv[]) {
 			
 			#ifdef _WIN32
 				printf_info("Dump " PRNT_GREN "OK" PRNT_RSET);
-				sleep(1);
+				// sleep(1);
 			#endif
 			
 			return 0;
@@ -53,7 +53,7 @@ s32 Main(s32 argc, char* argv[]) {
 			
 			#ifdef _WIN32
 				printf_info("Build " PRNT_GREN "OK" PRNT_RSET);
-				sleep(1);
+				// sleep(1);
 			#endif
 			
 			return 0;
