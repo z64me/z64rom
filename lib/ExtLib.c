@@ -95,6 +95,14 @@ void* Graph_Realloc(void* ptr, u32 size) {
 	return ret;
 }
 
+char* Graph_GenStr(char* str) {
+	char* ret = Graph_Alloc(strlen(str));
+	
+	strcpy(ret, str);
+	
+	return ret;
+}
+
 u32 Graph_GetSize(void* ptr) {
 	u32* val = ptr;
 	
@@ -962,6 +970,32 @@ void* Lib_MemMemCase(void* haystack, size_t haystackSize, void* needle, size_t n
 	return NULL;
 }
 
+void* Lib_MemMem16(const void* haystack, size_t haySize, const void* needle, size_t needleSize) {
+	if (haySize == 0 || needleSize == 0)
+		return NULL;
+	
+	if (haystack == NULL || needle == NULL)
+		return NULL;
+	
+	if (haySize < needleSize) {
+		return NULL;
+	}
+	
+	for (s32 i = 0;; i++) {
+		const u8* hay = haystack;
+		const u8* nee = needle;
+		
+		if (i * 16 > haySize - needleSize)
+			return NULL;
+		
+		if (hay[i * 16] == nee[0]) {
+			if (memcmp(&hay[i * 16], nee, needleSize) == 0) {
+				return (void*)&hay[i * 16];
+			}
+		}
+	}
+}
+
 void Lib_ByteSwap(void* src, s32 size) {
 	u32 buffer[64] = { 0 };
 	u8* temp = (u8*)buffer;
@@ -1490,7 +1524,6 @@ void MemFile_Free(MemFile* memFile) {
 }
 
 void MemFile_Clear(MemFile* memFile) {
-	memset(memFile->data, 0, memFile->memSize);
 	memFile->dataSize = 0;
 	memFile->seekPoint = 0;
 }
@@ -1862,6 +1895,17 @@ s32 String_Replace(char* src, char* word, char* replacement) {
 	s32 diff = 0;
 	char* ptr;
 	
+	if (strlen(word) == 1 && strlen(replacement) == 1) {
+		for (s32 i = 0; i < strlen(src); i++) {
+			if (src[i] == word[0]) {
+				src[i] = replacement[0];
+				break;
+			}
+		}
+		
+		return true;
+	}
+	
 	ptr = String_MemMem(src, word);
 	
 	while (ptr != NULL) {
@@ -1880,6 +1924,11 @@ void String_SwapExtension(char* dest, char* src, const char* ext) {
 	strcat(dest, ext);
 }
 
+s32 sConfigSuppression;
+
+void Config_SuppressNext(void) {
+	sConfigSuppression = 1;
+}
 // Config
 char* Config_Get(MemFile* memFile, char* name) {
 	u32 lineCount = String_GetLineCount(memFile->data);
@@ -1912,9 +1961,11 @@ s32 Config_GetBool(MemFile* memFile, char* boolName) {
 		}
 	}
 	
-	printf_warning("[%s] is missing bool [%s]", memFile->info.name, boolName);
+	if (sConfigSuppression == 0)
+		printf_warning("[%s] is missing bool [%s]", memFile->info.name, boolName);
+	else sConfigSuppression++;
 	
-	return -1;
+	return 0;
 }
 
 s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]) {
@@ -1932,9 +1983,11 @@ s32 Config_GetOption(MemFile* memFile, char* stringName, char* strList[]) {
 			return i;
 	}
 	
-	printf_warning("[%s] is missing option [%s]", memFile->info.name, stringName);
+	if (sConfigSuppression == 0)
+		printf_warning("[%s] is missing option [%s]", memFile->info.name, stringName);
+	else sConfigSuppression++;
 	
-	return -1;
+	return 0;
 }
 
 s32 Config_GetInt(MemFile* memFile, char* intName) {
@@ -1945,9 +1998,11 @@ s32 Config_GetInt(MemFile* memFile, char* intName) {
 		return String_GetInt(ptr);
 	}
 	
-	printf_warning("[%s] is missing integer [%s]", memFile->info.name, intName);
+	if (sConfigSuppression == 0)
+		printf_warning("[%s] is missing integer [%s]", memFile->info.name, intName);
+	else sConfigSuppression++;
 	
-	return 404040404;
+	return 0;
 }
 
 char* Config_GetString(MemFile* memFile, char* stringName) {
@@ -1958,7 +2013,9 @@ char* Config_GetString(MemFile* memFile, char* stringName) {
 		return ptr;
 	}
 	
-	printf_warning("[%s] is missing string [%s]", memFile->info.name, stringName);
+	if (sConfigSuppression == 0)
+		printf_warning("[%s] is missing string [%s]", memFile->info.name, stringName);
+	else sConfigSuppression++;
 	
 	return NULL;
 }
@@ -1971,7 +2028,9 @@ f32 Config_GetFloat(MemFile* memFile, char* floatName) {
 		return String_GetFloat(ptr);
 	}
 	
-	printf_warning("[%s] is missing float [%s]", memFile->info.name, floatName);
+	if (sConfigSuppression == 0)
+		printf_warning("[%s] is missing float [%s]", memFile->info.name, floatName);
+	else sConfigSuppression++;
 	
-	return -69.6969;
+	return 0;
 }
