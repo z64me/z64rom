@@ -103,7 +103,7 @@ const N64AudioInfo gSampleInfo[] = {
 	/* 099 */ { 22050, 0, NULL, "Amb_Gibberish" },
 	/* 100 */ { 16000, 3, NULL, "Sample_100" },
 	/* 101 */ { 16000, 0, NULL, "Sample_101" },
-	/* 102 */ { 16000, 0, NULL, "Sample_102" },
+	/* 102 */ { 16000, 0, NULL, "Sample_102" }, // Generic_Beam2
 	/* 103 */ { 16000, 0, NULL, "Sample_103" },
 	/* 104 */ { 16000, 0, NULL, "Sample_104" },
 	/* 105 */ { 12000, 0, NULL, "Wolf_Howl" },

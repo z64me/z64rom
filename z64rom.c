@@ -2,7 +2,7 @@
 
 void CheckTypes();
 
-char* sToolName = PRNT_PRPL "z64rom " PRNT_GRAY "0.1.3 alpha";
+char* sToolName = PRNT_PRPL "z64rom " PRNT_GRAY "0.1.4 alpha";
 char* sToolUsage = {
 	EXT_INFO_TITLE("Usage:")
 	EXT_INFO("Dump", 12, "DragNDrop [.z64] to z64rom executable")
@@ -12,6 +12,10 @@ char* sToolUsage = {
 	EXT_INFO("--D",  12, "Debug Print")
 };
 s32 gExtractAudio = true;
+s32 gLog;
+s32 gGenericNames;
+
+void sleep(time_t);
 
 s32 Main(s32 argc, char* argv[]) {
 	char* input = NULL;
@@ -23,8 +27,14 @@ s32 Main(s32 argc, char* argv[]) {
 	#endif
 	printf_SetPrefix("");
 	
+	if (ParArg("--Generic"))
+		gGenericNames = true;
+	
 	if (ParArg("--A"))
 		gExtractAudio = false;
+	
+	if (ParArg("--L"))
+		gLog = true;
 	
 	if (ParArg("--D"))
 		printf_SetSuppressLevel(PSL_DEBUG);
@@ -65,12 +75,18 @@ s32 Main(s32 argc, char* argv[]) {
 		Rom_New(rom, input);
 		Rom_Dump(rom);
 		Rom_Free(rom);
+		
+		printf_info("Dump " PRNT_GREN "OK" PRNT_RSET);
+		sleep(2);
 	} else {
 		if (Dir_Stat("rom/")) {
 			printf_toolinfo(sToolName, "\n");
 			Rom_New(rom, "oot-debug.z64");
 			Rom_Build(rom);
 			Rom_Free(rom);
+			
+			printf_info("Build " PRNT_GREN "OK" PRNT_RSET);
+			sleep(2);
 			
 			return 0;
 		}

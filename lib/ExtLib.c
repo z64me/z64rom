@@ -37,6 +37,7 @@ char* sPrintfPreType[][4] = {
 u8 sGraphBuffer[MbToBin(128)];
 u32 sGraphSize = 0x10;
 time_t sTime;
+MemFile sLog;
 
 // Segment
 void SetSegment(const u8 id, void* segment) {
@@ -100,8 +101,30 @@ u32 Graph_GetSize(void* ptr) {
 	return val[-1];
 }
 
-// Dir
+void Log(const char* fmt, ...) {
+	if (sLog.param.initKey == 0) {
+		sLog = MemFile_Initialize();
+		MemFile_Malloc(&sLog, BinToMb(1.0));
+		MemFile_Params(&sLog, MEM_REALLOC, true, MEM_END);
+		MemFile_Printf(&sLog, "\n", 1);
+	}
+	va_list args;
+	char buffer[512];
+	
+	va_start(args, fmt);
+	vsnprintf(buffer, ArrayCount(buffer), fmt, args);
+	va_end(args);
+	
+	MemFile_Printf(&sLog, "%s\n", buffer);
+}
 
+void LogPrint() {
+	printf_info("Log");
+	printf("%s\n", (char*)sLog.data);
+	MemFile_Clear(&sLog);
+}
+
+// Dir
 struct {
 	struct {
 		s32 enterCount[512];
@@ -501,23 +524,36 @@ char* CurWorkDir(void) {
 // ItemList
 void ItemList_NumericalSort(ItemList* list) {
 	ItemList sorted = { 0 };
+	u32 highestNum = 0;
 	
 	if (list->num <= 1)
 		return;
 	
-	sorted.buffer = Graph_Alloc(Graph_GetSize(list->buffer));
-	sorted.item = Graph_Alloc(sizeof(char*) * list->num);
+	for (s32 i = 0; i < list->num; i++) {
+		if (String_GetInt(list->item[i]) > highestNum)
+			highestNum = String_GetInt(list->item[i]);
+	}
 	
-	for (s32 j = 0; j < list->num; j++) {
-		for (s32 i = 0; i < list->num; i++) {
-			if (String_MemMem(list->item[i], tprintf("%d-", j)) == list->item[i]) {
+	sorted.buffer = Graph_Alloc(list->writePoint + 0x10);
+	sorted.item = Graph_Alloc(sizeof(char*) * (highestNum + 2));
+	
+	for (s32 i = 0; i <= highestNum; i++) {
+		u32 null = true;
+		
+		for (s32 j = 0; j < list->num; j++) {
+			if (String_GetInt(list->item[j]) == i) {
 				sorted.item[sorted.num] = &sorted.buffer[sorted.writePoint];
-				strcpy(sorted.item[sorted.num], list->item[i]);
-				sorted.writePoint += strlen(list->item[i]) + 1;
+				strcpy(sorted.item[sorted.num], list->item[j]);
+				sorted.writePoint += strlen(list->item[j]) + 1;
 				sorted.num++;
-				
+				null = false;
 				break;
 			}
+		}
+		
+		if (null == true) {
+			sorted.item[sorted.num] = NULL;
+			sorted.num++;
 		}
 	}
 	
@@ -1237,8 +1273,8 @@ s32 MemFile_Append(MemFile* dest, MemFile* src) {
 }
 
 void MemFile_Align(MemFile* src, u32 align) {
-	if (src->seekPoint & 0xF) {
-		MemFile_Params(src, MEM_ALIGN, 16, MEM_END);
+	if (src->seekPoint % align) {
+		MemFile_Params(src, MEM_ALIGN, align, MEM_END);
 		MemFile_Write(src, "\0", 1);
 		MemFile_Params(src, MEM_CLEAR, MEM_END);
 	}

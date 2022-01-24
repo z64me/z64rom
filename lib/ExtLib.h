@@ -163,6 +163,9 @@ void* Graph_Alloc(u32 size);
 void* Graph_Realloc(void* ptr, u32 size);
 u32 Graph_GetSize(void* ptr);
 
+void Log(const char* fmt, ...);
+void LogPrint();
+
 void Dir_SetParam(DirParam w);
 void Dir_UnsetParam(DirParam w);
 void Dir_Set(char* path, ...);
@@ -480,6 +483,8 @@ extern PrintfSuppressLevel gPrintfSuppress;
     #ifndef __EXTLIB_C__
 		#define printf_debug(...)       if (0) {}
 		#define printf_debug_align(...) if (0) {}
+		#define Log(...)                if (0) {}
+		#define LogPrint()              if (0) {}
     #endif
 #endif
 

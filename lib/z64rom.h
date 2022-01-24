@@ -119,6 +119,8 @@ extern const char* gSequenceName[];
 extern const N64AudioInfo gSampleInfo[];
 
 extern s32 gExtractAudio;
+extern s32 gLog;
+extern s32 gGenericNames;
 
 void fix_crc(unsigned char* rom);
 
