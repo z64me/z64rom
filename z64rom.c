@@ -1,8 +1,6 @@
 #include "lib/z64rom.h"
 
-void CheckTypes();
-
-char* sToolName = PRNT_PRPL "z64rom " PRNT_GRAY "0.1.4 alpha";
+char* sToolName = PRNT_PRPL "z64rom " PRNT_GRAY "0.1.4.1 alpha";
 char* sToolUsage = {
 	EXT_INFO_TITLE("Usage:")
 	EXT_INFO("Dump", 12, "DragNDrop [.z64] to z64rom executable")
@@ -14,18 +12,68 @@ char* sToolUsage = {
 s32 gExtractAudio = true;
 s32 gLog;
 s32 gGenericNames;
+s32 sDumpFlag;
 
 void sleep(time_t);
+void z64rom_Args(char* argv[]);
+void z64rom_Config(char** input, Rom* rom, s32 argc, char* argv[]);
+void z64rom_CheckTypes();
 
 s32 Main(s32 argc, char* argv[]) {
 	char* input = NULL;
 	Rom* rom = Lib_Calloc(0, sizeof(struct Rom));
-	u32 parArg = 0;
 	
 	#ifdef _WIN32
 		printf_WinFix();
 	#endif
 	printf_SetPrefix("");
+	
+	z64rom_CheckTypes();
+	z64rom_Args(argv);
+	z64rom_Config(&input, rom, argc, argv);
+	
+	if (input) {
+		if (sDumpFlag) {
+			printf_toolinfo(sToolName, "\n");
+			Rom_New(rom, input);
+			Rom_Dump(rom);
+			Rom_Free(rom);
+			
+			#ifdef _WIN32
+				printf_info("Dump " PRNT_GREN "OK" PRNT_RSET);
+				sleep(1);
+			#endif
+			
+			return 0;
+		} else {
+			printf_toolinfo(sToolName, "\n");
+			Rom_New(rom, input);
+			Rom_Build(rom);
+			Rom_Free(rom);
+			
+			#ifdef _WIN32
+				printf_info("Build " PRNT_GREN "OK" PRNT_RSET);
+				sleep(1);
+			#endif
+			
+			return 0;
+		}
+	}
+	
+	printf_toolinfo(sToolName, sToolUsage);
+	
+	#ifdef _WIN32
+		if (argc == 1) {
+			printf_info("Press enter to exit.");
+			getchar();
+		}
+	#endif
+	
+	return 0;
+}
+
+void z64rom_Args(char* argv[]) {
+	u32 parArg = 0;
 	
 	if (ParArg("--Generic"))
 		gGenericNames = true;
@@ -38,18 +86,27 @@ s32 Main(s32 argc, char* argv[]) {
 	
 	if (ParArg("--D"))
 		printf_SetSuppressLevel(PSL_DEBUG);
+}
+
+void z64rom_Config(char** input, Rom* rom, s32 argc, char* argv[]) {
+	char* confAu = tprintf("%s%s", CurWorkDir(), "tools/z64audio.cfg");
+	char* confRom = tprintf("%s%s", CurWorkDir(), "rom_config.cfg");
+	MemFile iWantToBePointer = MemFile_Initialize();
+	MemFile* config = &iWantToBePointer;
+	u32 parArg = 0;
 	
-	char* confFile = tprintf("%s%s", CurWorkDir(), "tools/z64audio.cfg");
-	
-	if (!Stat(confFile)) {
+	if (!Stat(confAu)) {
 		MemFile config = MemFile_Initialize();
 		#ifndef _WIN32
-			if (system("./tools/z64audio --GenCfg --S") != 65) printf_error("Could not run z64audio");
+			if (system("./tools/z64audio --GenCfg --S")) {
+			}
 		#else
-			if (system("tools\\z64audio.exe --GenCfg --S") != 65) printf_error("Could not run z64audio");
+			if (system("tools\\z64audio.exe --GenCfg --S")) {
+			}
 		#endif
 		
-		MemFile_LoadFile_String(&config, confFile);
+		if (MemFile_LoadFile_String(&config, confAu))
+			printf_error("Could not locate [tools/config.cfg]");
 		
 		String_Replace(config.data, "zaudio_z64rom_mode = false", "zaudio_z64rom_mode = true");
 		config.dataSize = strlen(config.data);
@@ -57,53 +114,40 @@ s32 Main(s32 argc, char* argv[]) {
 		MemFile_Free(&config);
 	}
 	
-	CheckTypes();
-	
-	if (Lib_ParseArguments(argv, "--i", &parArg))
-		input = argv[parArg];
-	else {
+	if (Lib_ParseArguments(argv, "--i", &parArg)) {
+		input[0] = argv[parArg];
+		sDumpFlag = true;
+	} else {
 		for (s32 i = 0; i < argc; i++) {
 			if (String_MemMemCase(argv[i], ".z64")) {
-				input = argv[i];
+				input[0] = argv[i];
+				sDumpFlag = true;
 				break;
 			}
 		}
 	}
 	
-	if (input) {
-		printf_toolinfo(sToolName, "\n");
-		Rom_New(rom, input);
-		Rom_Dump(rom);
-		Rom_Free(rom);
+	if (sDumpFlag) {
+		MemFile_Malloc(config, MbToBin(0.1));
 		
-		printf_info("Dump " PRNT_GREN "OK" PRNT_RSET);
-		sleep(2);
-	} else {
-		if (Dir_Stat("rom/")) {
-			printf_toolinfo(sToolName, "\n");
-			Rom_New(rom, "oot-debug.z64");
-			Rom_Build(rom);
-			Rom_Free(rom);
-			
-			printf_info("Build " PRNT_GREN "OK" PRNT_RSET);
-			sleep(2);
-			
-			return 0;
+		Config_WriteTitle_Str("Project Settings");
+		Config_WriteVar_Str("z_baserom", String_GetFilename(input[0]));
+		
+		MemFile_SaveFile_String(config, confRom);
+	} else if (Stat(confRom)) {
+		MemFile_LoadFile_String(config, confRom);
+		
+		input[0] = Config_GetString(config, "z_baserom");
+		
+		if (!Stat(tprintf("%s%s", CurWorkDir(), input[0]))) {
+			printf_error("Could not locate your baserom [%s]", tprintf("%s%s", CurWorkDir(), input[0]));
 		}
-		printf_toolinfo(sToolName, sToolUsage);
 	}
 	
-	#ifdef _WIN32
-		if (argc == 1) {
-			printf_info("Press enter to exit.");
-			getchar();
-		}
-	#endif
-	
-	return 0;
+	MemFile_Free(config);
 }
 
-void CheckTypes() {
+void z64rom_CheckTypes() {
 	u32 error = 0;
 	
 	#define SizeTester(type, expectedSize) if (sizeof(type) != expectedSize) { \
