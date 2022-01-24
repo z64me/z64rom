@@ -104,28 +104,28 @@ z64rom: z64rom.c $(SOURCE_O_LINUX)
 # WINDOWS32
 bin/win32/ndebug/%.o: %.c %.h $(HEADER)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -c -o $@ $< -$(OPT_WIN32) $(CFLAGS) -DNDEBUG -D_WIN32
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) -DNDEBUG -D_WIN32
 	
 bin/win32/ndebug/%.o: %.c $(HEADER)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -c -o $@ $< -$(OPT_WIN32) $(CFLAGS) -DNDEBUG -D_WIN32 -Wno-missing-braces
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) -DNDEBUG -D_WIN32 -Wno-missing-braces
 	
 bin/win32/%.o: %.c %.h $(HEADER)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -c -o $@ $< -$(OPT_WIN32) $(CFLAGS) -D_WIN32
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) -D_WIN32
 	
 bin/win32/%.o: %.c $(HEADER)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -c -o $@ $< -$(OPT_WIN32) $(CFLAGS) -D_WIN32 -Wno-missing-braces
+	@i686-w64-mingw32.static-gcc -c -o $@ $< $(OPT_WIN32) $(CFLAGS) -D_WIN32 -Wno-missing-braces
 
 bin/icon.o: lib/icon.rc lib/icon.ico
 	@i686-w64-mingw32.static-windres -o $@ $<
 
 $(RELEASE_EXECUTABLE_WIN32): z64rom.c bin/icon.o $(SOURCE_O_RELEASE_WIN32)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -o $@ $^ -$(OPT_WIN32) $(CFLAGS) -DNDEBUG -lm -D_WIN32
+	@i686-w64-mingw32.static-gcc -o $@ $^ $(OPT_WIN32) $(CFLAGS) -DNDEBUG -lm -D_WIN32
 #	@upx -9 --lzma $@ > /dev/null
 
 z64rom.exe: z64rom.c bin/icon.o $(SOURCE_O_WIN32)
 	@echo "$(PRNT_RSET)$(PRNT_RSET)[$(PRNT_CYAN)$(notdir $@)$(PRNT_RSET)] [$(PRNT_CYAN)$(notdir $^)$(PRNT_RSET)]"
-	@i686-w64-mingw32.static-gcc -o $@ $^ -$(OPT_WIN32) $(CFLAGS) -lm -D_WIN32
+	@i686-w64-mingw32.static-gcc -o $@ $^ $(OPT_WIN32) $(CFLAGS) -lm -D_WIN32
