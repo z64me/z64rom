@@ -991,6 +991,9 @@ static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) 
 			char* cfg = Dir_File("config.cfg");
 			f32 tuning;
 			
+			if (file == NULL)
+				printf_error("Could not locate sample in [%s]", itemList.item[i]);
+			
 			printf_progress("Append Sample", i + 1, itemList.num);
 			
 			if (MemFile_LoadFile(&sample, file))
@@ -1351,7 +1354,6 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 				}
 				
 				sfx.tuning = Config_GetFloat(config, "prim_tuning");
-				SwapBE(sfx.swap32);
 				
 				/* SAMPLE */ {
 					char* sample = prim;
@@ -1370,8 +1372,9 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					MemFile_Clear(config);
 					MemFile_LoadFile_String(config, Dir_File("config.cfg"));
 					
-					if (sSampleTbl[l].tuninOverride != 0)
+					if (sSampleTbl[l].tuninOverride > 0)
 						sfx.tuning = sSampleTbl[l].tuninOverride;
+					SwapBE(sfx.swap32);
 					
 					smpl.sampleAddr = ReadBE(sSampleTbl[l].segment);
 					smpl.data = sSampleTbl[l].size;
