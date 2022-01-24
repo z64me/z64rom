@@ -2,7 +2,7 @@
 
 void CheckTypes();
 
-char* sToolName = PRNT_PRPL "z64rom " PRNT_GRAY "0.1 alpha";
+char* sToolName = PRNT_PRPL "z64rom " PRNT_GRAY "0.1.3 alpha";
 char* sToolUsage = {
 	EXT_INFO_TITLE("Usage:")
 	EXT_INFO("Dump", 12, "DragNDrop [.z64] to z64rom executable")

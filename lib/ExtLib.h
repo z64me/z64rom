@@ -174,6 +174,8 @@ char* Dir_Current(void);
 char* Dir_File(char* fmt, ...);
 s32 Dir_Stat(char* dir);
 void Dir_ItemList(ItemList* itemList, bool isPath);
+void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not);
+void Dir_ItemList_Keyword(ItemList* itemList, char* ext);
 void MakeDir(const char* dir, ...);
 s32 Stat(char* x);
 char* CurWorkDir(void);

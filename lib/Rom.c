@@ -9,9 +9,7 @@ static void Rom_ItemList(ItemList* list, bool isPath, bool isNum, bool numerical
 	Dir_Enter("vanilla/"); {
 		Dir_ItemList(&listVan, isPath);
 	} Dir_Leave();
-	Dir_ItemList(&listMod, isPath);
-	if (Dir_Stat("vanilla/"))
-		listMod.num--;
+	Dir_ItemList_Not(&listMod, isPath, "vanilla");
 	
 	if (numericalSort) {
 		ItemList_NumericalSort(&listVan);
@@ -49,37 +47,35 @@ static void Rom_ItemList(ItemList* list, bool isPath, bool isNum, bool numerical
 			}
 		}
 	} else {
-		for (;;) {
-			if (posMod != listMod.num && strcmp(listMod.item[posMod], listVan.item[posVan]) == 0) {
-				list->item[list->num] = &list->buffer[list->writePoint];
-				strcpy(list->item[list->num], listMod.item[posMod]);
-				list->writePoint += strlen(listMod.item[posMod]) + 1;
-				
-				list->num++;
-				posMod++;
-				posVan++;
-			} else if (posVan != listVan.num) {
-				char* item = tprintf("vanilla/%s", listVan.item[posVan]);
-				
-				list->item[list->num] = &list->buffer[list->writePoint];
-				strcpy(list->item[list->num], item);
-				list->writePoint += strlen(item) + 1;
-				
-				list->num++;
-				posVan++;
-			} else {
-				if (posMod != listMod.num) {
-					list->item[list->num] = &list->buffer[list->writePoint];
-					strcpy(list->item[list->num], listMod.item[posMod]);
-					list->writePoint += strlen(listMod.item[posMod]) + 1;
-					
-					list->num++;
-					posMod++;
+		while (posMod < listMod.num) {
+			list->item[list->num] = &list->buffer[list->writePoint];
+			strcpy(list->item[list->num], listMod.item[posMod]);
+			list->writePoint += strlen(listMod.item[posMod]) + 1;
+			
+			list->num++;
+			posMod++;
+		}
+		
+		while (posVan < listVan.num) {
+			u32 cont = 0;
+			for (s32 i = 0; i < list->num; i++) {
+				if (!strcmp(listVan.item[posVan], list->item[i])) {
+					cont = 1;
 					posVan++;
-				} else {
 					break;
 				}
 			}
+			
+			if (cont) continue;
+			
+			char* item = tprintf("vanilla/%s", listVan.item[posVan]);
+			
+			list->item[list->num] = &list->buffer[list->writePoint];
+			strcpy(list->item[list->num], item);
+			list->writePoint += strlen(item) + 1;
+			
+			list->num++;
+			posVan++;
 		}
 	}
 	
@@ -895,18 +891,13 @@ void Rom_Dump(Rom* rom) {
 /* / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / * / */
 
 struct {
-	char name[48];
+	char name[128];
 	u32  segment;
 	u32  size;
 	f32  tuninOverride;
 	char dir[512];
-} sSampleTbl[1024 * 5];
+} sSampleTbl[1024 * 2];
 s32 sSampleTblNum;
-
-struct {
-	u8 bankIndex;
-} sFontTable[255];
-u32 sFontTableNum;
 
 static void Rom_Build_SetAudioSegment(Rom* rom) {
 	u16* addr;
@@ -941,8 +932,7 @@ static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) 
 	MemFile_Malloc(&sample, MbToBin(0.25));
 	MemFile_Clear(dataFile);
 	Rom_ItemList(&itemList, true, false, false);
-	MemFile_Params(dataFile, MEM_ALIGN, 16, MEM_END);
-	MemFile_Params(dataFile, MEM_REALLOC, true, MEM_END);
+	MemFile_Params(dataFile, MEM_ALIGN, 16, MEM_REALLOC, true, MEM_END);
 	
 	for (s32 i = 0; i < itemList.num; i++) {
 		MemFile_Clear(config);
@@ -965,9 +955,12 @@ static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) 
 			}
 			
 			sSampleTbl[sSampleTblNum].segment = dataFile->seekPoint;
+			if (dataFile->seekPoint & 0xF)
+				printf_error("Error: Samplebank alignment failed!");
+			
 			sSampleTbl[sSampleTblNum].size = sample.dataSize;
-			strcpy(sSampleTbl[sSampleTblNum].dir, String_GetPath(file));
-			strcpy(sSampleTbl[sSampleTblNum].name, String_GetFolder(file, -1));
+			strcpy(sSampleTbl[sSampleTblNum].dir, Dir_File(""));
+			strcpy(sSampleTbl[sSampleTblNum].name, String_GetFolder(itemList.item[i], -1));
 			String_Replace(sSampleTbl[sSampleTblNum].name, "/", "\0");
 			sSampleTblNum++;
 			MemFile_Append(dataFile, &sample);
@@ -976,7 +969,7 @@ static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) 
 	
 	AudioEntryHead* head = SegmentedToVirtual(0x0, rom->offset.table.sampleTable);
 	
-	head->numEntries = 1;
+	// head->numEntries = 1;
 	SwapBE(head->numEntries);
 	for (s32 i = 0; i < 7 ; i++) {
 		head->entries[i].romAddr = 0;
@@ -988,6 +981,16 @@ static void Rom_Build_SampleTable(Rom* rom, MemFile* dataFile, MemFile* config) 
 	MemFile_Align(&rom->file, 16);
 	MemFile_Free(&sample);
 	MemFile_Params(dataFile, MEM_CLEAR, MEM_END);
+}
+
+static void Audio_LoadFile(MemFile* dataFile, char* file) {
+	char buf[512];
+	
+	strcpy(buf, file);
+	String_Replace(buf, "*", "sample");
+	if (MemFile_LoadFile(dataFile, Dir_File(buf)))
+		if (MemFile_LoadFile(dataFile, Dir_File(file)))
+			printf_error("Could not load file [%s]", Dir_File(buf));
 }
 
 static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
@@ -1018,8 +1021,6 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 	head->numEntries = itemList.num;
 	SwapBE(head->numEntries);
 	
-	sFontTableNum = itemList.num;
-	
 	for (s32 i = 0; i < itemList.num; i++) {
 		ItemList listInst = { 0 };
 		ItemList listSfx = { 0 };
@@ -1040,8 +1041,6 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		MemFile_Write(&memInst, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16);
 		
 		SetSegment(0x4, memBank.data);
-		
-		sFontTable[i].bankIndex = String_GetHexInt(itemList.item[i]);
 		
 		Dir_Enter(itemList.item[i]); {
 			u32 smplNum = 0;
@@ -1108,8 +1107,10 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					continue;
 				}
 				
-				for (s32 k = 0; k < sSampleTblNum; k++) {
+				for (s32 k = 0;; k++) {
 					if (low && !strcmp(sSampleTbl[k].name, low)) {
+						if (k == sSampleTblNum)
+							printf_error("Could not locate sample [%s]", low);
 						instruments.lo.tuning = sSampleTbl[k].tuninOverride;
 						if (sSampleTbl[k].tuninOverride == 0)
 							instruments.lo.tuning = Config_GetFloat(config, "low_tuning");
@@ -1118,6 +1119,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 						low = NULL;
 					}
 					if (prim && !strcmp(sSampleTbl[k].name, prim)) {
+						if (k == sSampleTblNum)
+							printf_error("Could not locate sample [%s]", prim);
 						instruments.prim.tuning = sSampleTbl[k].tuninOverride;
 						if (sSampleTbl[k].tuninOverride == 0)
 							instruments.prim.tuning = Config_GetFloat(config, "prim_tuning");
@@ -1126,6 +1129,8 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 						prim = NULL;
 					}
 					if (hi && !strcmp(sSampleTbl[k].name, hi)) {
+						if (k == sSampleTblNum)
+							printf_error("Could not locate sample [%s]", hi);
 						instruments.hi.tuning = sSampleTbl[k].tuninOverride;
 						if (sSampleTbl[k].tuninOverride == 0)
 							instruments.hi.tuning = Config_GetFloat(config, "hi_tuning");
@@ -1176,16 +1181,18 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 							break;
 					}
 					
+					if (!memcmp(sample, "NULL", 4))
+						continue;
+					
 					s32 l = 0;
-					for (; l < sSampleTblNum; l++) {
+					for (;; l++) {
+						if (k == sSampleTblNum)
+							printf_error("Could not locate sample [%s]", sample);
 						if (!strcmp(sSampleTbl[l].name, sample))
 							break;
 					}
 					
-					if (!memcmp(sample, "NULL", 4))
-						continue;
-					
-					if (!Stat(sSampleTbl[l].dir)) printf_error("Dir [%s] does not exist", sSampleTbl[l].dir);
+					if (!Stat(sSampleTbl[l].dir)) printf_error("Dir [%s] does not exist for sample [%s]", sSampleTbl[l].dir, sample);
 					Dir_Set(sSampleTbl[l].dir);
 					
 					MemFile_Clear(dataFile);
@@ -1201,35 +1208,37 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					smpl.data |= Config_GetInt(dataFile, "bitB") << (32 - 8);
 					SwapBE(smpl.data);
 					
-					AdpcmLoop loop = {
-						Config_GetInt(dataFile, "loop_start"),
-						Config_GetInt(dataFile, "loop_end"),
-						Config_GetInt(dataFile, "loop_count"),
-						Config_GetInt(dataFile, "tail_end"),
-					};
-					SwapBE(loop.start);
-					SwapBE(loop.end);
-					SwapBE(loop.count);
-					SwapBE(loop.origSpls);
-					smpl.loop = memLoopBook.seekPoint;
-					if (!Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4)) {
-						MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
-						if (loop.count != 0) {
-							MemFile_Clear(dataFile);
-							if (MemFile_LoadFile(dataFile, Dir_File("sample.loopbook.bin")))
-								if (MemFile_LoadFile(dataFile, Dir_File("*.loopbook.bin")))
-									printf_error("Could not load file [%s]", Dir_File("sample.loopbook.bin"));
-							MemFile_Append(&memLoopBook, dataFile);
+					u32 loop[4 + 8];
+					u32 loopSize = 4 * 4;
+					
+					loop[0] = Config_GetInt(dataFile, "loop_start");
+					loop[1] = Config_GetInt(dataFile, "loop_end");
+					loop[2] = Config_GetInt(dataFile, "loop_count");
+					loop[3] = Config_GetInt(dataFile, "tail_end");
+					SwapBE(loop[0]);
+					SwapBE(loop[1]);
+					SwapBE(loop[2]);
+					SwapBE(loop[3]);
+					if (loop[2]) {
+						MemFile_Clear(dataFile);
+						Audio_LoadFile(dataFile, "*.loopbook.bin");
+						for (s32 i = 0; i < 8; i++) {
+							loop[4 + i] = dataFile->cast.u32[0];
 						}
+						
+						loopSize = 4 * (4 + 8);
+					}
+					
+					if (!Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, loop, loopSize)) {
+						smpl.loop = memLoopBook.seekPoint;
+						MemFile_Write(&memLoopBook, loop, loopSize);
 					} else {
-						void* ptr = Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4);
+						void* ptr = Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, loop, loopSize);
 						smpl.loop = (uPtr)ptr - (uPtr)memLoopBook.data;
 					}
 					
 					MemFile_Clear(dataFile);
-					if (MemFile_LoadFile(dataFile, Dir_File("sample.book.bin")))
-						if (MemFile_LoadFile(dataFile, Dir_File("*.book.bin")))
-							printf_error("Could not load file [%s]", Dir_File("sample.book.bin"));
+					Audio_LoadFile(dataFile, "*.book.bin");
 					smpl.book = memBook.seekPoint;
 					if (!Lib_MemMem(memBook.data, memBook.dataSize, dataFile->data, dataFile->dataSize)) {
 						MemFile_Append(&memBook, dataFile);
@@ -1294,12 +1303,14 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					Sample smpl = { 0 };
 					
 					s32 l = 0;
-					for (; l < sSampleTblNum; l++) {
+					for (;; l++) {
+						if (l == sSampleTblNum)
+							printf_error("Could not locate sample [%s]", sample);
 						if (!strcmp(sSampleTbl[l].name, sample))
 							break;
 					}
 					
-					if (!Stat(sSampleTbl[l].dir)) printf_error("Dir [%s] does not exist", sSampleTbl[l].dir);
+					if (!Stat(sSampleTbl[l].dir)) printf_error("Dir [%s] does not exist for sample [%s]", sSampleTbl[l].dir, sample);
 					Dir_Set(sSampleTbl[l].dir);
 					
 					MemFile_Clear(config);
@@ -1317,35 +1328,37 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					SwapBE(smpl.data);
 					sfx.sample = memSample.seekPoint;
 					
-					AdpcmLoop loop = {
-						Config_GetInt(config, "loop_start"),
-						Config_GetInt(config, "loop_end"),
-						Config_GetInt(config, "loop_count"),
-						Config_GetInt(config, "tail_end"),
-					};
-					SwapBE(loop.start);
-					SwapBE(loop.end);
-					SwapBE(loop.count);
-					SwapBE(loop.origSpls);
-					smpl.loop = memLoopBook.seekPoint;
-					if (!Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4)) {
-						MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
-						if (loop.count != 0) {
-							MemFile_Clear(dataFile);
-							if (MemFile_LoadFile(dataFile, Dir_File("sample.loopbook.bin")))
-								if (MemFile_LoadFile(dataFile, Dir_File("*.loopbook.bin")))
-									printf_error("Could not load file [%s]", Dir_File("sample.loopbook.bin"));
-							MemFile_Append(&memLoopBook, dataFile);
+					u32 loop[4 + 8];
+					u32 loopSize = 4 * 4;
+					
+					loop[0] = Config_GetInt(config, "loop_start");
+					loop[1] = Config_GetInt(config, "loop_end");
+					loop[2] = Config_GetInt(config, "loop_count");
+					loop[3] = Config_GetInt(config, "tail_end");
+					SwapBE(loop[0]);
+					SwapBE(loop[1]);
+					SwapBE(loop[2]);
+					SwapBE(loop[3]);
+					if (loop[2]) {
+						MemFile_Clear(dataFile);
+						Audio_LoadFile(dataFile, "*.loopbook.bin");
+						for (s32 i = 0; i < 8; i++) {
+							loop[4 + i] = dataFile->cast.u32[0];
 						}
+						
+						loopSize = 4 * (4 + 8);
+					}
+					
+					if (!Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, loop, loopSize)) {
+						smpl.loop = memLoopBook.seekPoint;
+						MemFile_Write(&memLoopBook, loop, loopSize);
 					} else {
-						void* ptr = Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4);
+						void* ptr = Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, loop, loopSize);
 						smpl.loop = (uPtr)ptr - (uPtr)memLoopBook.data;
 					}
 					
 					MemFile_Clear(dataFile);
-					if (MemFile_LoadFile(dataFile, Dir_File("sample.book.bin")))
-						if (MemFile_LoadFile(dataFile, Dir_File("*.book.bin")))
-							printf_error("Could not load file [%s]", Dir_File("sample.book.bin"));
+					Audio_LoadFile(dataFile, "*.book.bin");
 					smpl.book = memBook.seekPoint;
 					if (!Lib_MemMem(memBook.data, memBook.dataSize, dataFile->data, dataFile->dataSize)) {
 						MemFile_Append(&memBook, dataFile);
@@ -1425,12 +1438,14 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					Sample smpl = { 0 };
 					
 					s32 l = 0;
-					for (; l < sSampleTblNum; l++) {
+					for (;; l++) {
+						if (l == sSampleTblNum)
+							printf_error("Could not locate sample [%s]", sample);
 						if (!strcmp(sSampleTbl[l].name, sample))
 							break;
 					}
 					
-					if (!Stat(sSampleTbl[l].dir)) printf_error("Dir [%s] does not exist", sSampleTbl[l].dir);
+					if (!Stat(sSampleTbl[l].dir)) printf_error("Dir [%s] does not exist for sample [%s]", sSampleTbl[l].dir, sample);
 					Dir_Set(sSampleTbl[l].dir);
 					
 					MemFile_Clear(config);
@@ -1445,36 +1460,38 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 					SwapBE(smpl.data);
 					
 					drum.sound.sample = memSample.seekPoint;
-					AdpcmLoop loop = {
-						Config_GetInt(config, "loop_start"),
-						Config_GetInt(config, "loop_end"),
-						Config_GetInt(config, "loop_count"),
-						Config_GetInt(config, "tail_end"),
-					};
-					SwapBE(loop.start);
-					SwapBE(loop.end);
-					SwapBE(loop.count);
-					SwapBE(loop.origSpls);
-					smpl.loop = memLoopBook.seekPoint;
-					if (!Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4)) {
-						MemFile_Write(&memLoopBook, &loop, sizeof(u32) * 4);
-						if (loop.count != 0) {
-							MemFile_Clear(dataFile);
-							if (MemFile_LoadFile(dataFile, Dir_File("sample.loopbook.bin")))
-								if (MemFile_LoadFile(dataFile, Dir_File("*.loopbook.bin")))
-									printf_error("Could not load file [%s]", Dir_File("sample.loopbook.bin"));
-							MemFile_Append(&memLoopBook, dataFile);
+					
+					u32 loop[4 + 8];
+					u32 loopSize = 4 * 4;
+					
+					loop[0] = Config_GetInt(config, "loop_start");
+					loop[1] = Config_GetInt(config, "loop_end");
+					loop[2] = Config_GetInt(config, "loop_count");
+					loop[3] = Config_GetInt(config, "tail_end");
+					SwapBE(loop[0]);
+					SwapBE(loop[1]);
+					SwapBE(loop[2]);
+					SwapBE(loop[3]);
+					if (loop[2]) {
+						MemFile_Clear(dataFile);
+						Audio_LoadFile(dataFile, "*.loopbook.bin");
+						for (s32 i = 0; i < 8; i++) {
+							loop[4 + i] = dataFile->cast.u32[0];
 						}
-					} else {
-						void* ptr = Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, &loop, 4 * 4);
 						
+						loopSize = 4 * (4 + 8);
+					}
+					
+					if (!Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, loop, loopSize)) {
+						smpl.loop = memLoopBook.seekPoint;
+						MemFile_Write(&memLoopBook, loop, loopSize);
+					} else {
+						void* ptr = Lib_MemMem(memLoopBook.data, memLoopBook.dataSize, loop, loopSize);
 						smpl.loop = (uPtr)ptr - (uPtr)memLoopBook.data;
 					}
 					
 					MemFile_Clear(dataFile);
-					if (MemFile_LoadFile(dataFile, Dir_File("sample.book.bin")))
-						if (MemFile_LoadFile(dataFile, Dir_File("*.book.bin")))
-							printf_error("Could not load file [%s]", Dir_File("sample.book.bin"));
+					Audio_LoadFile(dataFile, "*.book.bin");
 					smpl.book = memBook.seekPoint;
 					if (!Lib_MemMem(memBook.data, memBook.dataSize, dataFile->data, dataFile->dataSize)) {
 						MemFile_Append(&memBook, dataFile);
@@ -1615,7 +1632,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		MemFile_Align(&memBank, 16);
 		
 		u32 seekPoint = rom->file.seekPoint - rom->offset.segment.fontRom;
-		MemFile_SaveFile(&memBank, Dir_File("%02X-Bank.bin", i));
+		// MemFile_SaveFile(&memBank, Dir_File("%02X-Bank.bin", i));
 		MemFile_Append(&rom->file, &memBank);
 		MemFile_Align(&rom->file, 16);
 		
@@ -1624,7 +1641,7 @@ static void Rom_Build_SoundFont(Rom* rom, MemFile* dataFile, MemFile* config) {
 		head->entries[i].numDrum = listDrum.num;
 		head->entries[i].numInst = listInst.num;
 		head->entries[i].numSfx = listSfx.num;
-		head->entries[i].audioTable1 = 0;
+		// head->entries[i].audioTable1 = 0;
 		SwapBE(head->entries[i].size);
 		SwapBE(head->entries[i].numSfx);
 	}
@@ -1705,6 +1722,26 @@ static void Rom_Build_Sequence(Rom* rom, MemFile* dataFile, MemFile* config) {
 	MemFile_Append(&rom->file, &memLookUpTable);
 }
 
+static void Rom_Build_Patch(Rom* rom, MemFile* dataFile, MemFile* config) {
+	ItemList list;
+	
+	Dir_ItemList_Keyword(&list, ".bin");
+	
+	for (s32 i = 0; i < list.num; i++) {
+		printf_progress("Applying Patches", i + 1, list.num);
+		u32 injectAddr;
+		char* addrPoint = String_MemMem(list.item[i], "0x");
+		
+		MemFile_Clear(dataFile);
+		MemFile_LoadFile(dataFile, list.item[i]);
+		
+		injectAddr = String_GetInt(addrPoint);
+		
+		MemFile_Seek(&rom->file, injectAddr);
+		MemFile_Append(&rom->file, dataFile);
+	}
+}
+
 void Rom_Build(Rom* rom) {
 	MemFile dataFile = MemFile_Initialize();
 	MemFile config = MemFile_Initialize();
@@ -1730,6 +1767,12 @@ void Rom_Build(Rom* rom) {
 			} Dir_Leave();
 		} Dir_Leave();
 	} Dir_Leave();
+	
+	Dir_SetParam(DIR__MAKE_ON_ENTER);
+	Dir_Enter("patches/"); {
+		Rom_Build_Patch(rom, &dataFile, &config);
+	} Dir_Leave();
+	Dir_UnsetParam(DIR__MAKE_ON_ENTER);
 	
 	Rom_Build_SetAudioSegment(rom);
 	

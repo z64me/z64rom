@@ -65,8 +65,11 @@ void* Graph_Alloc(u32 size) {
 	if (size == 0)
 		return NULL;
 	
-	if (sGraphSize + size + 0x20 > MbToBin(128))
+	if (sGraphSize + size + 0x20 > MbToBin(128)) {
+		printf_warning("GrapRound");
+		getchar();
 		sGraphSize = 0x10;
+	}
 	
 	param = (u32*)&sGraphBuffer[sGraphSize];
 	param[-1] = size;
@@ -82,7 +85,6 @@ void* Graph_Alloc(u32 size) {
 	return ret;
 }
 
-// Graph
 void* Graph_Realloc(void* ptr, u32 size) {
 	u8* ret = Graph_Alloc(size);
 	u32* param = ptr;
@@ -317,6 +319,108 @@ void Dir_ItemList(ItemList* itemList, bool isPath) {
 					itemList->writePoint += strlen(itemList->item[i]) + 1;
 					i++;
 				}
+			}
+		}
+		closedir(dir);
+	}
+}
+
+void Dir_ItemList_Not(ItemList* itemList, bool isPath, char* not) {
+	DIR* dir = opendir(sCurrentPath);
+	u32 bufSize = 0;
+	struct dirent* entry;
+	
+	*itemList = (ItemList) { 0 };
+	
+	if (dir == NULL)
+		printf_error_align("Could not opendir()", "%s", sCurrentPath);
+	
+	while ((entry = readdir(dir)) != NULL) {
+		if (isPath) {
+			if (__isDir(Dir_File(entry->d_name))) {
+				if (entry->d_name[0] == '.')
+					continue;
+				if (strcmp(entry->d_name, not) == 0)
+					continue;
+				itemList->num++;
+				bufSize += strlen(entry->d_name) + 2;
+			}
+		} else {
+			if (!__isDir(Dir_File(entry->d_name))) {
+				itemList->num++;
+				bufSize += strlen(entry->d_name) + 2;
+			}
+		}
+	}
+	
+	closedir(dir);
+	
+	if (itemList->num) {
+		u32 i = 0;
+		dir = opendir(sCurrentPath);
+		itemList->buffer = Graph_Alloc(bufSize);
+		itemList->item = Graph_Alloc(sizeof(char*) * itemList->num);
+		
+		while ((entry = readdir(dir)) != NULL) {
+			if (isPath) {
+				if (__isDir(Dir_File(entry->d_name))) {
+					if (entry->d_name[0] == '.')
+						continue;
+					if (strcmp(entry->d_name, not) == 0)
+						continue;
+					strcpy(&itemList->buffer[itemList->writePoint], tprintf("%s/", entry->d_name));
+					itemList->item[i] = &itemList->buffer[itemList->writePoint];
+					itemList->writePoint += strlen(itemList->item[i]) + 1;
+					i++;
+				}
+			} else {
+				if (!__isDir(Dir_File(entry->d_name))) {
+					strcpy(&itemList->buffer[itemList->writePoint], tprintf("%s", entry->d_name));
+					itemList->item[i] = &itemList->buffer[itemList->writePoint];
+					itemList->writePoint += strlen(itemList->item[i]) + 1;
+					i++;
+				}
+			}
+		}
+		closedir(dir);
+	}
+}
+
+void Dir_ItemList_Keyword(ItemList* itemList, char* ext) {
+	DIR* dir = opendir(sCurrentPath);
+	u32 bufSize = 0;
+	struct dirent* entry;
+	
+	*itemList = (ItemList) { 0 };
+	
+	if (dir == NULL)
+		printf_error_align("Could not opendir()", "%s", sCurrentPath);
+	
+	while ((entry = readdir(dir)) != NULL) {
+		if (!__isDir(Dir_File(entry->d_name))) {
+			if (!String_MemMem(entry->d_name, ext))
+				continue;
+			itemList->num++;
+			bufSize += strlen(entry->d_name) + 2;
+		}
+	}
+	
+	closedir(dir);
+	
+	if (itemList->num) {
+		u32 i = 0;
+		dir = opendir(sCurrentPath);
+		itemList->buffer = Graph_Alloc(bufSize);
+		itemList->item = Graph_Alloc(sizeof(char*) * itemList->num);
+		
+		while ((entry = readdir(dir)) != NULL) {
+			if (!__isDir(Dir_File(entry->d_name))) {
+				if (!String_MemMem(entry->d_name, ext))
+					continue;
+				strcpy(&itemList->buffer[itemList->writePoint], tprintf("%s", entry->d_name));
+				itemList->item[i] = &itemList->buffer[itemList->writePoint];
+				itemList->writePoint += strlen(itemList->item[i]) + 1;
+				i++;
 			}
 		}
 		closedir(dir);
